@@ -1,12 +1,9 @@
 require 'fileutils'
 
-require 'spec_id'
-require 'spec_id/sequest'
-require 'fasta'
-require 'mspire'
+#require 'fasta'
+#require 'mspire'
 require 'set'
 
-require 'core_extensions'
 
 module BinaryReader
   Null_char = "\0"[0]  ## TODO: change for ruby 1.9 or 2.0
@@ -26,7 +23,6 @@ end
 # class to extract information from <file>_dta.log files
 
 class SRFGroup
-  include SpecID
 
   ## the srf objects themselves
   attr_accessor :srfs, :filenames
@@ -689,7 +685,10 @@ end
 
 # total_num_possible_charge_states is not correct under 3.5 (Bioworks 3.3.1)
 # unknown is, well unknown...
-SRF::DTA = Arrayclass.new(%w(mh dta_tic num_peaks charge ms_level unknown total_num_possible_charge_states peaks))
+
+
+srf_dta_atts = %w(mh dta_tic num_peaks charge ms_level unknown total_num_possible_charge_states peaks)
+SRF::DTA = Struct.new(*(srf_dta_atts.map {|v| v.to_sym }))
 
 class SRF::DTA 
   # original
@@ -733,11 +732,11 @@ class SRF::DTA
   end
 
   def to_dta_file_data
-     string = "#{mh.round_to(6)} #{charge}\r\n"
+     string = "#{round(mh, 6)} #{charge}\r\n"
      peak_ar = peaks.unpack('e*')
      (0...(peak_ar.size)).step(2) do |i|
        # %d is equivalent to floor, so we round by adding 0.5!
-       string << "#{peak_ar[i].round_to(4)} #{(peak_ar[i+1] + 0.5).floor}\r\n"
+       string << "#{round(peak_ar[i], 4)} #{(peak_ar[i+1] + 0.5).floor}\r\n"
        #string << peak_ar[i,2].join(' ') << "\r\n"
      end
      string
@@ -750,7 +749,9 @@ class SRF::DTA
 
 end
 
-SRF::OUT =  Arrayclass.new( %w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count) )
+srf_out_atts = %w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count)
+SRF::OUT = Struct.new( *(srf_out_atts.map {|v| v.to_sym }) )
+
 # 0=first_scan, 1=last_scan, 2=charge, 3=num_hits, 4=computer, 5=date_time, 6=hits, 7=total_inten, 8=lowest_sp, 9=num_matched_peptides, 10=db_locus_count
 
 class SRF::OUT
@@ -820,12 +821,14 @@ end
 # the first one listed
 # srf = the srf object this scan came from
 
-SRF::OUT::Pep = Arrayclass.new(%w( mh deltacn_orig sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated) )
+srf_out_pep = %w(mh deltacn_orig sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated)
+
+SRF::OUT::Pep = Struct.new( *(srf_out_pep.map {|v| v.to_sym }) )
 
 # 0=mh 1=deltacn_orig 2=sp 3=xcorr 4=id 5=num_other_loci 6=rsp 7=ions_matched 8=ions_total 9=sequence 10=prots 11=deltamass 12=ppm 13=aaseq 14=base_name 15=first_scan 16=last_scan 17=charge 18=srf 19=deltacn 20=deltacn_orig_updated
 
 class SRF::OUT::Pep
-  include SpecID::Pep
+  #include SpecID::Pep
 
   # creates the deltacn that is meaningful for the top hit (the deltacn_orig
   # or the second best hit and so on).
@@ -942,13 +945,14 @@ class SRF::OUT::Pep
 
  end
 
-SRF::OUT::Prot = Arrayclass.new( %w(reference peps) )
+srf_out_prot_atts = %w(reference peps)
+SRF::OUT::Prot = Struct.new( *(srf_out_prot_atts.map {|v| v.to_sym }) )
 
 class SRF::OUT::Prot
-  include SpecID::Prot
-  # we shouldn't have to do this because this is inlcuded in SpecID::Prot, but
-  # under some circumstances it won't work without explicitly calling it.
-  include ProteinReferenceable 
+  #include SpecID::Prot
+  ## we shouldn't have to do this because this is inlcuded in SpecID::Prot, but
+  ## under some circumstances it won't work without explicitly calling it.
+  #include ProteinReferenceable 
 
   tmp = $VERBOSE ; $VERBOSE = nil
   def initialize(reference=nil, peps=[])
