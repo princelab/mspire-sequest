@@ -1,0 +1,9 @@
+[submodule "submodule/ms-testdata"]
+	path = submodule/ms-testdata
+	url = git://github.com/bahuvrihi/ms-testdata.git
+[submodule "submodule/ms-in_silico"]
+	path = submodule/ms-in_silico
+	url = git://github.com/bahuvrihi/ms-in_silico.git
+[submodule "submodule/tap-mechanize"]
+	path = submodule/tap-mechanize
+	url = git://github.com/bahuvrihi/tap-mechanize.git
