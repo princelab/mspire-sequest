@@ -1,11 +1,36 @@
-require 'sample_enzyme'
+#require 'sample_enzyme'
 
 
-##
 # In the future, this guy should accept any version of bioworks params file
 # and spit out any param queried.
-module Sequest ; end
-class Sequest::Params
+
+module Ms ; end
+module Ms::Sequest ; end
+
+# 1) provides a reader and simple parameter lookup for SEQUEST params files
+# supporting Bioworks 3.1-3.3.1.  
+#     params = Ms::Sequest::Params.new("sequest.params") # filename by default
+#     params = Ms::Sequest::Params.new.parse_io(some_io_object)
+#
+#     params.some_parameter  # => any parameter defined has a method
+#     params.nonexistent_parameter # => nil 
+#
+# Provides consistent behavior between different versions important info:
+#    
+#     # some basic methods shared by all versions:
+#     params.version              # => '3.1' | '3.2' | '3.3'
+#     params.enzyme               # => enzyme name with no parentheses
+#     params.min_number_termini 
+#     params.database             # => first_database_name 
+#     params.enzyme_specificity   # => [offset, cleave_at, expect_if_after]
+#     params.precursor_mass_type  # => "average" | "monoisotopic"
+#     params.fragment_mass_type   # => "average" | "monoisotopic"
+#
+#     # some backwards/forwards compatibility methods:
+#     params.max_num_internal_cleavages  # == max_num_internal_cleavage_sites
+#     params.fragment_ion_tol     # => fragment_ion_tolerance
+#     
+class Ms::Sequest::Params
 
   Bioworks31_Enzyme_Info_Array = [
     ['No_Enzyme', 0, '-', '-'],   # 0
@@ -42,7 +67,7 @@ class Sequest::Params
   # will accept a sequest.params file or .srf file
   def initialize(file=nil)
     if file
-      parse(file)
+      parse_file(file)
     end
   end
 
@@ -71,7 +96,7 @@ class Sequest::Params
   end
 
   # returns self
-  def parse_handle(fh)
+  def parse_io(fh)
     # seek to the SEQUEST file
     loop do
       if fh.gets =~ @@sequest_line
@@ -102,9 +127,9 @@ class Sequest::Params
   ## and drops the .hdr behind indexed fasta files
   ## returns self
   ## can read sequest.params file or .srf file handle
-  def parse(file)
+  def parse_file(file)
     File.open(file) do |fh|
-      parse_handle(fh)
+      parse_io(fh)
     end
     self
   end
@@ -204,16 +229,16 @@ class Sequest::Params
     @opts["first_database_name"]
   end
 
-  # returns the appropriate aminoacid mass lookup table (in spec_id.rb SpecID::MONO or
-  # SpecID::AVG based on precursor_mass_type
-  def mass_table
-    case precursor_mass_type
-    when 'average'
-      SpecID::AVG
-    when 'monoisotopic'
-      SpecID::MONO
-    end
-  end
+  ## returns the appropriate aminoacid mass lookup table (in spec_id.rb SpecID::MONO or
+  ## SpecID::AVG based on precursor_mass_type
+  #def mass_table
+  #  case precursor_mass_type
+  #  when 'average'
+  #    SpecID::AVG
+  #  when 'monoisotopic'
+  #    SpecID::MONO
+  #  end
+  #end
 
   # at least in Bioworks 3.2, the First number after the enzyme
   # is the indication of the enzymatic end stringency (required):
@@ -225,36 +250,35 @@ class Sequest::Params
   #   1 => 2
   #   2 => 1
   def min_number_termini
-    termini_number = @opts["enzyme_info"].split(" ")[1]
-    if termini_number == "1"
-      return "2"
-    elsif termini_number == "2"
-      return "1"
-    else
-      puts "WARNING: Enzyme termini info might be imprecise!"
-      return "1"
+    if e_info = @opts["enzyme_info"]
+      case e_info.split(" ")[1]
+      when "1": return "2"
+      when "2": return "1"
+      end
     end
+    warn "No Enzyme termini info, using min_number_termini = '1'"
+    return "1"
   end
 
-  # returns a SampleEnzyme object
-  def sample_enzyme
-    (offset, cleave_at, except_if_after) = enzyme_specificity.map do |v|
-      if v == '' ; nil ; else v end
-    end
-    SampleEnzyme.new do |se|
-      se.name = self.enzyme
-      se.cut = cleave_at
-      se.no_cut = except_if_after
-      se.sense =
-        if se.name == "No_Enzyme"
-          nil
-        elsif offset == 1
-          'C'
-        elsif offset == 0
-          'N'
-        end
-    end
-  end
+  ## returns a SampleEnzyme object
+  #def sample_enzyme
+  #  (offset, cleave_at, except_if_after) = enzyme_specificity.map do |v|
+  #    if v == '' ; nil ; else v end
+  #  end
+  #  SampleEnzyme.new do |se|
+  #    se.name = self.enzyme
+  #    se.cut = cleave_at
+  #    se.no_cut = except_if_after
+  #    se.sense =
+  #      if se.name == "No_Enzyme"
+  #        nil
+  #      elsif offset == 1
+  #        'C'
+  #      elsif offset == 0
+  #        'N'
+  #      end
+  #  end
+  #end
 
   # returns the enzyme name (but no parentheses connected with the name).
   # this will likely be capitalized.
@@ -291,7 +315,7 @@ class Sequest::Params
   end
 
   def max_num_differential_AA_per_mod
-    @opts["max_num_differential_per_peptide"]
+    @opts["max_num_differential_AA_per_mod"] || @opts["max_num_differential_per_peptide"]
   end
 
   # returns a hash by add_<whatever> of any static mods != 0

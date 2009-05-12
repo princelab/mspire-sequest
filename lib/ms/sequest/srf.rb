@@ -1,168 +1,16 @@
 require 'fileutils'
+require 'ms/id/peptide'
 
 #require 'fasta'
 #require 'mspire'
+require 'arrayclass'
 require 'set'
+require 'ms/sequest/params'
 
+module Ms ; end
+module Ms::Sequest ; end
 
-module BinaryReader
-  Null_char = "\0"[0]  ## TODO: change for ruby 1.9 or 2.0
-  # extracts a string with all empty chars at the end stripped
-  # expects the filehandle to be at the proper location
-  def get_null_padded_string(fh,bytes)
-    st = fh.read(bytes)
-    # for empty declarations
-    if st[0] == Null_char
-      return ''
-    end
-    st.rstrip!
-    st
-  end
-end
-
-# class to extract information from <file>_dta.log files
-
-class SRFGroup
-
-  ## the srf objects themselves
-  attr_accessor :srfs, :filenames
-  ## also inherits :peps and :prots accessor
-
-  # takes an array of filenames
-  # or a single .srg filename
-  # see from_srg to load a single .srg file
-  # by default, the hits will be returned filtered by sequest params values.
-  # [The raw SRF data is unfiltered!]
-  def initialize(filenames=nil, filter_hits_by_params=true)
-    @filenames = filenames
-    @peps = []
-    @prots = []
-    @srfs = []
-
-    # This is essentially duplicated in SQTGroup (should refactor eventually)
-    global_ref_hash = {}
-    if filenames
-      if filenames.is_a?(String) && filenames =~ /\.srg$/
-        srg_filename = filenames.dup
-        @filename = srg_filename
-        filenames = SRFGroup.srg_to_paths(filenames) 
-        filenames.each do |file|
-          if !File.exist? file
-            puts "File: #{file} in #{srg_filename} does not exist!"
-            puts "Please modify #{srg_filename} to point to existing files."
-            abort
-          end
-        end
-      end
-      filenames.each do |file|
-        @srfs << SRF.new(file, @peps, global_ref_hash)
-      end
-      @prots = global_ref_hash.values
-      if filter_hits_by_params
-        filter_by_peptide_mass_tolerance
-      end
-    end
-  end
-
-  # reads a srg file and delivers the path names
-  def self.srg_to_paths(file)
-    IO.readlines(file).grep(/\w/).map {|v| v.chomp } 
-  end
-
-
-  # if srfs were read in separately, then the proteins will need to be merged
-  # by their reference
-  def merge_different_sets(srfs)
-    raise NotImplementedError, "need to implement?"
-  end
-
-  # 1. sets @prots and returns it: a new list of proteins based on which
-  # peptides passed.
-  # 2. updates the out_file's list of hits based on passing peptides (but not
-  # the original hit id; rank is implicit in array ordering)
-  # 3. updates each protein to only include peptides passing thresholds.
-  # [Note, this process is how .out files are generated!]
-  # 4. recalculates deltacn values completely if number of hits changed (does
-  # not touch deltacn orig)
-  # ASSUMES: 
-  # A. all srfs have identical params objects and each has a
-  # peptide_mass_tolerance filter attribute.
-  # B. proteins are already unique (peptides referencing the same protein
-  # reference the same object already) In practice, this means all srfs were
-  # read in together.
-  def filter_by_peptide_mass_tolerance
-    prots_in_set = Set.new
-    params = @srfs.first.params
-    pmt = params.peptide_mass_tolerance.to_f
-    methd = nil  # the method to 
-
-    case params.peptide_mass_units
-    when '0'
-      amu_based = true
-      milli_amu = false
-    when '1'
-      amu_based = true
-      milli_amu = true
-    when '2'
-      amu_based = false
-    end
-
-    @srfs.each do |srf|
-      srf.filtered_by_precursor_mass_tolerance = true
-      srf.out_files.each do |out_file|
-        hits = out_file.hits
-        before = hits.size
-        hits.reject! do |pep|
-          do_not_keep =
-            if amu_based
-              if milli_amu
-                (pep.deltamass.abs > (pmt/1000))
-              else
-                (pep.deltamass.abs > pmt)
-              end
-            else
-              (pep.ppm.abs > pmt)
-            end
-          unless do_not_keep
-            pep.prots.each do |prot|
-              if prots_in_set.include?(prot)
-                prot.peps << pep
-              else
-                prots_in_set.add(prot)
-                prot.peps = [pep]
-              end
-            end
-          end
-          do_not_keep
-        end
-        if hits.size != before
-          SRF::OUT::Pep.update_deltacns_from_xcorr(hits)
-          out_file.num_hits = hits.size
-        end
-      end
-    end
-    @prots = prots_in_set.to_a
-
-  end
-
-  # returns the filename used
-  # if the file exists, the name will be expanded to full path, otherwise just
-  # what is given
-  def to_srg(srg_filename='bioworks.srg')
-    File.open(srg_filename, 'w') do |v|
-      @filenames.each do |srf_file|
-        if File.exist? srf_file
-          v.puts File.expand_path(srf_file)
-        else
-          v.puts srf_file
-        end
-      end
-    end
-    srg_filename
-  end
-end
-
-class SRF
+class Ms::Sequest::Srf
 
   # a string 3.5, 3.3 or 3.2
   attr_accessor :version
@@ -181,7 +29,7 @@ class SRF
 
   attr_accessor :filtered_by_precursor_mass_tolerance 
 
-  # returns a Sequest::Params object
+  # returns a Sequest::Params object or nil if none
   def self.get_sequest_params(filename)
     # split the file in half and only read the second half (since we can be
     # confident that the params file will be there!)
@@ -189,9 +37,14 @@ class SRF
       halfway = handle.stat.size / 2
       handle.seek halfway
       last_half = handle.read
-      params_start_index = last_half.rindex('[SEQUEST]') + halfway
-      handle.seek(params_start_index)
-      Sequest::Params.new.parse_handle(handle)
+      if sequest_start_index = last_half.rindex('[SEQUEST]')
+        params_start_index =  sequest_start_index + halfway
+        handle.seek(params_start_index)
+        Ms::Sequest::Params.new.parse_io(handle)
+      else
+        warn "#{filename} has no SEQUEST information, may be a truncated/corrupt file!"
+        nil
+      end
     end
   end
 
@@ -208,7 +61,7 @@ class SRF
   # NOTE: if you want the hits filtered by precursor tolerance (the way they
   # might be displayed in .out files) you should probably use SRFGroup (which
   # does this by default)
-  # SRF is meant to be a low level read of the file.
+  # Ms::Sequest::Srf is meant to be a low level read of the file.
   def initialize(filename=nil, peps=[], global_ref_hash={})
     @dta_files = []
     @out_files = []
@@ -479,22 +332,26 @@ class SRF
 
   # returns self
   def from_file(filename, peps, global_ref_hash)
-    dups = SRF.get_sequest_params(filename).print_duplicate_references
-    if dups == '0'
-      raise RuntimeError, <<END
-
+    params = Ms::Sequest::Srf.get_sequest_params(filename)
+    dups_gt_0 = false
+    if params
+      dups = params.print_duplicate_references
+      if dups == '0'
+        warn <<END
 ***************************************************************************
-Sorry, but the SRF reader cannot read this file!
-.srf files must currently be created with print_duplicate_references > 0
-(This is how the srf object can link peptides with proteins!)
-To capture all duplicate references, set the sequest parameter
-'print_duplicate_references' to 100 or greater.
+For complete protein <=> peptide linkages, .srf files must be created with
+print_duplicate_references > 0. To capture all duplicate references, set the
+sequest parameter 'print_duplicate_references' to 100 or greater.
 ***************************************************************************
 END
+      else
+        dups_gt_0 = true
+      end
+    else
     end
 
     File.open(filename, "rb") do |fh|
-      @header = SRF::Header.new.from_handle(fh)      
+      @header = Ms::Sequest::Srf::Header.new.from_io(fh)      
       @version = @header.version
       
       unpack_35 = case @version
@@ -509,11 +366,11 @@ END
       
       @out_files = read_out_files(fh,@header.num_dta_files, global_ref_hash, measured_mhs, unpack_35)
       if fh.eof?
-        warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
+        #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
         @params = nil
         @index = []
       else
-        @params = Sequest::Params.new.parse_handle(fh)
+        @params = Ms::Sequest::Params.new.parse_io(fh)
         # This is very sensitive to the grab_params method in sequest params
         fh.read(12)  ## gap between last params entry and index 
         @index = read_scan_index(fh,@header.num_dta_files)
@@ -564,7 +421,7 @@ END
     end
 
     header.num_dta_files.times do |i|
-      dta_file = SRF::DTA.new.from_handle(fh, unpack_35) 
+      dta_file = Ms::Sequest::Srf::DTA.new.from_io(fh, unpack_35) 
       measured_mhs[i] = dta_file[0]
       dta_files[i] = dta_file
     end
@@ -576,15 +433,14 @@ END
   def read_out_files(fh,number_files, global_ref_hash, measured_mhs, unpack_35)
     out_files = Array.new(number_files)
     header.num_dta_files.times do |i|
-      out_files[i] = SRF::OUT.new.from_handle(fh, global_ref_hash, unpack_35)
+      out_files[i] = Ms::Sequest::Srf::OUT.new.from_io(fh, global_ref_hash, unpack_35)
     end
     out_files
   end
 
 end
 
-class SRF::Header
-  include BinaryReader
+class Ms::Sequest::Srf::Header
 
   Start_byte = {
     :enzyme => 438,
@@ -612,7 +468,7 @@ class SRF::Header
     :modifications => 456,
   }
  
-  # a SRF::DTAGen object
+  # a Ms::Sequest::Srf::DTAGen object
   attr_accessor :version
   attr_accessor :dta_gen
   attr_accessor :enzyme
@@ -630,10 +486,10 @@ class SRF::Header
   end
 
   # sets fh to 0 and grabs the information it wants
-  def from_handle(fh)
+  def from_io(fh)
     st = fh.read(4) 
     @version = '3.' + st.unpack('I').first.to_s
-    @dta_gen = SRF::DTAGen.new.from_handle(fh)
+    @dta_gen = Ms::Sequest::Srf::DTAGen.new.from_io(fh)
 
     ## get the rest of the info
     byte_length = Byte_length.dup
@@ -646,10 +502,22 @@ class SRF::Header
     self
   end
 
+  private
+  def get_null_padded_string(fh,bytes)
+    st = fh.read(bytes)
+    # for empty declarations
+    if st[0] == 0x000000
+      return ''
+    end
+    st.rstrip!
+    st
+  end
+
+
 end
 
 # the DTA Generation Params
-class SRF::DTAGen
+class Ms::Sequest::Srf::DTAGen
 
   ## not sure if this is correct
   # Float
@@ -675,7 +543,7 @@ class SRF::DTAGen
   attr_accessor :end_scan
 
   # 
-  def from_handle(fh)
+  def from_io(fh)
     fh.pos = 0 if fh.pos != 0  
     st = fh.read(148)
     (@start_time, @start_mass, @end_mass, @num_dta_files, @group_scan, @min_group_count, @min_ion_threshold, @start_scan, @end_scan) = st.unpack('x36ex12ex4ex48Ix12IIIII')
@@ -686,11 +554,9 @@ end
 # total_num_possible_charge_states is not correct under 3.5 (Bioworks 3.3.1)
 # unknown is, well unknown...
 
+Ms::Sequest::Srf::DTA = Arrayclass.new( %w(mh dta_tic num_peaks charge ms_level unknown total_num_possible_charge_states peaks) )
 
-srf_dta_atts = %w(mh dta_tic num_peaks charge ms_level unknown total_num_possible_charge_states peaks)
-SRF::DTA = Struct.new(*(srf_dta_atts.map {|v| v.to_sym }))
-
-class SRF::DTA 
+class Ms::Sequest::Srf::DTA 
   # original
   # Unpack = "EeIvvvv"
   Unpack_32 = "EeIvvvv"
@@ -704,10 +570,10 @@ class SRF::DTA
   def inspect
     peaks_st = 'nil'
     if self[7] ; peaks_st = "[#{self[7].size} bytes]" end
-    "<SRF::DTA @mh=#{mh} @dta_tic=#{dta_tic} @num_peaks=#{num_peaks} @charge=#{charge} @ms_level=#{ms_level} @total_num_possible_charge_states=#{total_num_possible_charge_states} @peaks=#{peaks_st} >"
+    "<Ms::Sequest::Srf::DTA @mh=#{mh} @dta_tic=#{dta_tic} @num_peaks=#{num_peaks} @charge=#{charge} @ms_level=#{ms_level} @total_num_possible_charge_states=#{total_num_possible_charge_states} @peaks=#{peaks_st} >"
   end
     
-  def from_handle(fh, unpack_35)
+  def from_io(fh, unpack_35)
     if unpack_35
       @unpack = Unpack_35
       @read_header = 34
@@ -749,12 +615,12 @@ class SRF::DTA
 
 end
 
-srf_out_atts = %w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count)
-SRF::OUT = Struct.new( *(srf_out_atts.map {|v| v.to_sym }) )
+
+Ms::Sequest::Srf::OUT = Arrayclass.new( %w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count) )
 
 # 0=first_scan, 1=last_scan, 2=charge, 3=num_hits, 4=computer, 5=date_time, 6=hits, 7=total_inten, 8=lowest_sp, 9=num_matched_peptides, 10=db_locus_count
 
-class SRF::OUT
+class Ms::Sequest::Srf::OUT
   Unpack_32 = '@36vx2Z*@60Z*'
   Unpack_35 = '@36vx4Z*@62Z*'
 
@@ -766,10 +632,10 @@ class SRF::OUT
       else
         ''
       end
-    "<SRF::OUT  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
+    "<Ms::Sequest::Srf::OUT  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
   end
     
-  def from_handle(fh, global_ref_hash, unpack_35)
+  def from_io(fh, global_ref_hash, unpack_35)
     ## EMPTY out file is 96 bytes
     ## each hit is 320 bytes
     ## num_hits and charge:
@@ -783,14 +649,14 @@ class SRF::OUT
     if ar.size > 0
       num_extra_references = 0
       num_hits.times do |i|
-        ar[i] = SRF::OUT::Pep.new.from_handle(fh, global_ref_hash, unpack_35)
+        ar[i] = Ms::Sequest::Srf::OUT::Pep.new.from_io(fh, global_ref_hash, unpack_35)
         num_extra_references += ar[i].num_other_loci
       end
-      SRF::OUT::Pep.read_extra_references(fh, num_extra_references, ar, global_ref_hash)
+      Ms::Sequest::Srf::OUT::Pep.read_extra_references(fh, num_extra_references, ar, global_ref_hash)
       ## The xcorrs are already ordered by best to worst hit
       ## ADJUST the deltacn's to be meaningful for the top hit:
       ## (the same as bioworks and prophet)
-      SRF::OUT::Pep.set_deltacn_from_deltacn_orig(ar)
+      Ms::Sequest::Srf::OUT::Pep.set_deltacn_from_deltacn_orig(ar)
       #puts ar.map  {|a| a.deltacn }.join(", ")
     end
     self[6] = ar
@@ -821,13 +687,12 @@ end
 # the first one listed
 # srf = the srf object this scan came from
 
-srf_out_pep = %w(mh deltacn_orig sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated)
 
-SRF::OUT::Pep = Struct.new( *(srf_out_pep.map {|v| v.to_sym }) )
+Ms::Sequest::Srf::OUT::Pep = Arrayclass.new( %w(mh deltacn_orig sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated) )
 
 # 0=mh 1=deltacn_orig 2=sp 3=xcorr 4=id 5=num_other_loci 6=rsp 7=ions_matched 8=ions_total 9=sequence 10=prots 11=deltamass 12=ppm 13=aaseq 14=base_name 15=first_scan 16=last_scan 17=charge 18=srf 19=deltacn 20=deltacn_orig_updated
 
-class SRF::OUT::Pep
+class Ms::Sequest::Srf::OUT::Pep
   #include SpecID::Pep
 
   # creates the deltacn that is meaningful for the top hit (the deltacn_orig
@@ -856,7 +721,6 @@ class SRF::OUT::Pep
   end
 
   def self.read_extra_references(fh, num_extra_references, pep_hits, global_ref_hash)
-    p num_extra_references
     num_extra_references.times do
       # 80 bytes total (with index number)
       pep = pep_hits[fh.read(8).unpack('x4I').first - 1]
@@ -905,11 +769,11 @@ class SRF::OUT::Pep
     end
     st.push('>')
     st.join(' ')
-    #"<SRF::OUT::Pep @mh=#{mh}, @deltacn=#{deltacn}, @sp=#{sp}, @xcorr=#{xcorr}, @id=#{id}, @rsp=#{rsp}, @ions_matched=#{ions_matched}, @ions_total=#{ions_total}, @sequence=#{sequence}, @prots(count)=#{prots.size}, @deltamass=#{deltamass}, @ppm=#{ppm} @aaseq=#{aaseq}, @base_name=#{base_name}, @first_scan=#{first_scan}, @last_scan=#{last_scan}, @charge=#{charge}, @srf(base_name)=#{srf.base_name}>"
+    #"<Ms::Sequest::Srf::OUT::Pep @mh=#{mh}, @deltacn=#{deltacn}, @sp=#{sp}, @xcorr=#{xcorr}, @id=#{id}, @rsp=#{rsp}, @ions_matched=#{ions_matched}, @ions_total=#{ions_total}, @sequence=#{sequence}, @prots(count)=#{prots.size}, @deltamass=#{deltamass}, @ppm=#{ppm} @aaseq=#{aaseq}, @base_name=#{base_name}, @first_scan=#{first_scan}, @last_scan=#{last_scan}, @charge=#{charge}, @srf(base_name)=#{srf.base_name}>"
   end
   # extra_references_array is an array that grows with peptides as extra
   # references are discovered.
-  def from_handle(fh, global_ref_hash, unpack_35)
+  def from_io(fh, global_ref_hash, unpack_35)
     unpack = 
       if unpack_35 ; Unpack_35
       else ; Unpack_32
@@ -927,7 +791,7 @@ class SRF::OUT::Pep
     # duplicate references
     self[10] = [new_protein(self[10][0,38], self, global_ref_hash)]
     
-    self[13] = SpecID::Pep.sequence_to_aaseq(self[9])
+    self[13] = Ms::Id::Peptide.sequence_to_aaseq(self[9])
 
     fh.read(6) if unpack_35
 
@@ -938,17 +802,17 @@ class SRF::OUT::Pep
     if global_ref_hash.key? reference
       global_ref_hash[reference].peps << peptide
     else
-      global_ref_hash[reference] = SRF::OUT::Prot.new(reference, [peptide])
+      global_ref_hash[reference] = Ms::Sequest::Srf::OUT::Prot.new(reference, [peptide])
     end
     global_ref_hash[reference] 
   end
 
  end
 
-srf_out_prot_atts = %w(reference peps)
-SRF::OUT::Prot = Struct.new( *(srf_out_prot_atts.map {|v| v.to_sym }) )
 
-class SRF::OUT::Prot
+Ms::Sequest::Srf::OUT::Prot = Arrayclass.new( %w(reference peps) )
+
+class Ms::Sequest::Srf::OUT::Prot
   #include SpecID::Prot
   ## we shouldn't have to do this because this is inlcuded in SpecID::Prot, but
   ## under some circumstances it won't work without explicitly calling it.
@@ -964,11 +828,151 @@ class SRF::OUT::Prot
   end
   $VERBOSE = tmp
 
-  #  "<SRF::OUT::Prot reference=\"#{@reference}\">"
+  #  "<Ms::Sequest::Srf::OUT::Prot reference=\"#{@reference}\">"
   
   undef_method :inspect
   def inspect
-    "<SRF::OUT::Prot @reference=#{reference}, @peps(#)=#{peps.size}>"
+    "<Ms::Sequest::Srf::OUT::Prot @reference=#{reference}, @peps(#)=#{peps.size}>"
+  end
+end
+
+class SRFGroup
+
+  ## the srf objects themselves
+  attr_accessor :srfs, :filenames
+  ## also inherits :peps and :prots accessor
+
+  # takes an array of filenames
+  # or a single .srg filename
+  # see from_srg to load a single .srg file
+  # by default, the hits will be returned filtered by sequest params values.
+  # [The raw Ms::Sequest::Srf data is unfiltered!]
+  def initialize(filenames=nil, filter_hits_by_params=true)
+    @filenames = filenames
+    @peps = []
+    @prots = []
+    @srfs = []
+
+    # This is essentially duplicated in SQTGroup (should refactor eventually)
+    global_ref_hash = {}
+    if filenames
+      if filenames.is_a?(String) && filenames =~ /\.srg$/
+        srg_filename = filenames.dup
+        @filename = srg_filename
+        filenames = SRFGroup.srg_to_paths(filenames) 
+        filenames.each do |file|
+          if !File.exist? file
+            puts "File: #{file} in #{srg_filename} does not exist!"
+            puts "Please modify #{srg_filename} to point to existing files."
+            abort
+          end
+        end
+      end
+      filenames.each do |file|
+        @srfs << Ms::Sequest::Srf.new(file, @peps, global_ref_hash)
+      end
+      @prots = global_ref_hash.values
+      if filter_hits_by_params
+        filter_by_peptide_mass_tolerance
+      end
+    end
+  end
+
+  # reads a srg file and delivers the path names
+  def self.srg_to_paths(file)
+    IO.readlines(file).grep(/\w/).map {|v| v.chomp } 
+  end
+
+
+  # if srfs were read in separately, then the proteins will need to be merged
+  # by their reference
+  def merge_different_sets(srfs)
+    raise NotImplementedError, "need to implement?"
+  end
+
+  # 1. sets @prots and returns it: a new list of proteins based on which
+  # peptides passed.
+  # 2. updates the out_file's list of hits based on passing peptides (but not
+  # the original hit id; rank is implicit in array ordering)
+  # 3. updates each protein to only include peptides passing thresholds.
+  # [Note, this process is how .out files are generated!]
+  # 4. recalculates deltacn values completely if number of hits changed (does
+  # not touch deltacn orig)
+  # ASSUMES: 
+  # A. all srfs have identical params objects and each has a
+  # peptide_mass_tolerance filter attribute.
+  # B. proteins are already unique (peptides referencing the same protein
+  # reference the same object already) In practice, this means all srfs were
+  # read in together.
+  def filter_by_peptide_mass_tolerance
+    prots_in_set = Set.new
+    params = @srfs.first.params
+    pmt = params.peptide_mass_tolerance.to_f
+    methd = nil  # the method to 
+
+    case params.peptide_mass_units
+    when '0'
+      amu_based = true
+      milli_amu = false
+    when '1'
+      amu_based = true
+      milli_amu = true
+    when '2'
+      amu_based = false
+    end
+
+    @srfs.each do |srf|
+      srf.filtered_by_precursor_mass_tolerance = true
+      srf.out_files.each do |out_file|
+        hits = out_file.hits
+        before = hits.size
+        hits.reject! do |pep|
+          do_not_keep =
+            if amu_based
+              if milli_amu
+                (pep.deltamass.abs > (pmt/1000))
+              else
+                (pep.deltamass.abs > pmt)
+              end
+            else
+              (pep.ppm.abs > pmt)
+            end
+          unless do_not_keep
+            pep.prots.each do |prot|
+              if prots_in_set.include?(prot)
+                prot.peps << pep
+              else
+                prots_in_set.add(prot)
+                prot.peps = [pep]
+              end
+            end
+          end
+          do_not_keep
+        end
+        if hits.size != before
+          Ms::Sequest::Srf::OUT::Pep.update_deltacns_from_xcorr(hits)
+          out_file.num_hits = hits.size
+        end
+      end
+    end
+    @prots = prots_in_set.to_a
+
+  end
+
+  # returns the filename used
+  # if the file exists, the name will be expanded to full path, otherwise just
+  # what is given
+  def to_srg(srg_filename='bioworks.srg')
+    File.open(srg_filename, 'w') do |v|
+      @filenames.each do |srf_file|
+        if File.exist? srf_file
+          v.puts File.expand_path(srf_file)
+        else
+          v.puts srf_file
+        end
+      end
+    end
+    srg_filename
   end
 end
 

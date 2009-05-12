@@ -1,5 +1,24 @@
+
+class Hash
+  def dup_hash
+    new_hash = {}
+    self.each do |k,v|
+      new_val = if v.is_a?(Fixnum) || v.is_a?(Symbol) ||v.is_a?(Float)
+                  v
+                else
+                  v.dup
+                end
+      new_hash[k] = new_val
+    end
+    new_hash
+  end
+end
+
+
+
 module SRFHelper
 
+  
   File_32 = {
     :header => 
     {
@@ -106,7 +125,7 @@ module SRFHelper
 
   File_33 = {}
   File_32.each do |k,v|
-    File_33[k] = v.dup
+    File_33[k] = v.dup_hash
   end
 
   ## Bioworks 3.3 (srf version 3.3)
@@ -126,9 +145,19 @@ module SRFHelper
 
   ## Bioworks 3.3.1 (srf version 3.5)
   File_331 = {}
+
+
   File_33.each do |k,v|
-    File_331[k] = v.dup
+    File_331[k] = v.dup_hash
   end
+
+  File_331[:params] = File_33[:params].dup_hash
+
+  adjust_keys = File_331[:params].keys.select {|k| k =~ /^add/ }.push(*%w(ion_cutoff_percentage peptide_mass_tolerance match_peak_tolerance fragment_ion_tolerance) )
+  adjust_keys.each do |key|
+    File_331[:params][key] = File_331[:params][key] << "0"
+  end
+
   File_331[:header][:raw_filename] = "C:\\Xcalibur\\data\\john\\opd1_2runs_2mods\\020.RAW"
   File_331[:header][:version] = "3.5"
   File_331[:out_files_first][:date_time] = '05/06/2008, 03:31 PM,'

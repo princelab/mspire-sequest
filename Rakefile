@@ -3,15 +3,33 @@ require 'rake/testtask'
 require 'rake/rdoctask'
 require 'rake/gempackagetask'
 
-#
-# Gem specification
-#
+NAME = 'ms-sequest'
+EXTRA_RDOC_FILES = %w(README MIT-LICENSE History)
+LIB_FILES = Dir["lib/**/*.rb"]
+DIST_FILES =  LIB_FILES + EXTRA_RDOC_FILES
 
-def gemspec
-  data = File.read(Dir["*.gemspec"].first)
-  spec = nil
-  Thread.new { spec = eval("$SAFE = 3\n#{data}") }.join
-  spec
+gemspec = Gem::Specification.new do |s|
+  s.name = NAME
+  s.version = "0.0.1"
+  s.authors = ["John Prince"]
+  s.email = "jtprince@gmail.com"
+  s.homepage = "http://mspire.rubyforge.org/projects/#{NAME}/"
+  s.platform = Gem::Platform::RUBY
+  s.summary = "An mspire library supporting SEQUEST, Bioworks, SQT, etc"
+  s.require_path = "lib"
+  s.rubyforge_project = "mspire"
+  s.has_rdoc = true
+  s.add_dependency("arrayclass", ">= 0.1.0")
+  s.add_dependency("ms-core", ">= 0.0.1")
+  #s.add_dependency("tap", ">= 0.12.4")
+  #s.add_dependency("tap-mechanize", ">= 0.5.1")
+  #s.add_dependency("external", ">= 0.3.0")
+  #s.add_dependency("ms-in_silico", ">= 0.2.3")
+  s.rdoc_options.concat %W{--main README -S -N --title Ms-Sequest}
+  
+  # list extra rdoc files like README here.
+  s.extra_rdoc_files = EXTRA_RDOC_FILES
+  s.files = DIST_FILES
 end
 
 Rake::GemPackageTask.new(gemspec) do |pkg|
