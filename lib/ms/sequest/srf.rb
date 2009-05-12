@@ -1,18 +1,25 @@
-require 'fileutils'
-require 'ms/id/peptide'
 
-#require 'fasta'
-#require 'mspire'
-require 'arrayclass'
+# standard lib
 require 'set'
+require 'fileutils'
+
+# other gems
+require 'arrayclass'
+
+# in library
+require 'ms/id/peptide'
 require 'ms/sequest/params'
+
+# for conversions
+require 'ms/sequest/srf/mgf'
+require 'ms/sequest/srf/sqt'
 
 module Ms ; end
 module Ms::Sequest ; end
 
 class Ms::Sequest::Srf
 
-  # a string 3.5, 3.3 or 3.2
+  # a String: 3.5, 3.3 or 3.2
   attr_accessor :version
 
   attr_accessor :header
@@ -25,8 +32,7 @@ class Ms::Sequest::Srf
   attr_accessor :base_name
   # this is the global peptides array
   attr_accessor :peps
-  MASCOT_HYDROGEN_MASS = 1.007276
-
+  
   attr_accessor :filtered_by_precursor_mass_tolerance 
 
   # returns a Sequest::Params object or nil if none
@@ -72,37 +78,6 @@ class Ms::Sequest::Srf
 
   def round(float, decimal_places)
     sprintf("%.#{decimal_places}f", float)
-  end
-
-  # this mimicks the output of merge.pl from mascot
-  # The only difference is that this does not include the "\r\n"
-  # that is found after the peak lists, instead, it uses "\n" throughout the
-  # file (thinking that this is preferable to mixing newline styles!)
-  # note that Mass
-  # if no filename is given, will use base_name + '.mgf'
-  def to_mgf_file(filename=nil)
-    filename =
-      if filename ; filename
-      else
-        base_name + '.mgf'
-      end
-    h_plus = SpecID::MONO[:h_plus]
-    File.open(filename, 'wb') do |out|
-      dta_files.zip(index) do |dta, i_ar|
-        chrg = dta.charge
-        out.puts 'BEGIN IONS'
-        out.puts "TITLE=#{[base_name, *i_ar].push('dta').join('.')}"
-        out.puts "CHARGE=#{chrg}+"
-        out.puts "PEPMASS=#{(dta.mh+((chrg-1)*h_plus))/chrg}"
-        peak_ar = dta.peaks.unpack('e*')
-        (0...(peak_ar.size)).step(2) do |i|
-          out.puts( peak_ar[i,2].join(' ') )
-        end
-        out.puts ''
-        out.puts 'END IONS'
-        out.puts ''
-      end
-    end
   end
 
   # not given an out_folder, will make one with the basename
@@ -165,161 +140,6 @@ class Ms::Sequest::Srf
     end
   end
 
-  # the out_filename will be the base_name + .sqt unless 'out_filename' is
-  # defined
-  # :round => round floating point numbers
-  # etc...
-  def to_sqt(out_filename=nil, opts={})
-    tic_dp = 2
-    mh_dp = 7
-    xcorr_dp = 5
-    sp_dp = 2
-    dcn_dp = 5
-
-    defaults = {:db_info=>false, :new_db_path=>nil, :update_db_path=>false, :round=>false}
-    opt = defaults.merge(opts)
-
-    outfile =
-      if out_filename
-        out_filename
-      else
-        base_name + '.sqt'
-      end
-    invariant_ordering = %w(SQTGenerator SQTGeneratorVersion Database FragmentMasses PrecursorMasses StartTime) # just for readability and consistency
-    fmt = 
-      if params.fragment_mass_type == 'average' ; 'AVG'
-      else ; 'MONO'
-      end
-    pmt =
-      if params.precursor_mass_type == 'average' ; 'AVG'
-      else ; 'MONO'
-      end
-
-    mass_table = params.mass_table
-    static_mods = params.static_mods.map do |k,v|
-      key =  k.split(/_/)[1]
-      if key.size == 1
-        key + '=' + (mass_table[key.to_sym] + v.to_f).to_s
-      else
-        key + '=' + v
-      end
-    end
-
-    dynamic_mods = []
-    header.modifications.scan(/\((.*?)\)/) do |match|
-      dynamic_mods << match.first.sub(/ /,'=')
-    end
-    plural = {
-      'StaticMod' => static_mods,
-      'DynamicMod' => dynamic_mods,  # example as diff mod
-      'Comment' => ['Created from Bioworks .srf file']
-    }
-
-
-    db_filename = header.db_filename
-    db_filename_in_sqt = db_filename
-    if opt[:new_db_path]
-      db_filename = File.join(opt[:new_db_path], File.basename(db_filename.gsub('\\', '/')))
-      if opt[:update_db_path]
-        db_filename_in_sqt = File.expand_path(db_filename)
-        warn "writing Database #{db_filename} to sqt, but it does not exist on this file system" unless File.exist?(db_filename) 
-      end
-    end
-
-    apmu = 
-      case params.peptide_mass_units 
-      when '0' : 'amu' 
-      when '1' : 'mmu'
-      when '2' : 'ppm'
-      end
-
-    hh =  {
-      'SQTGenerator' => 'mspire',
-      'SQTGeneratorVersion' => Mspire::Version,
-      'Database' => db_filename_in_sqt,
-      'FragmentMasses' => fmt,
-      'PrecursorMasses' => pmt,
-      'StartTime' => '',  # Bioworks 3.2 also leaves this blank...
-      'Alg-PreMassTol' => params.peptide_mass_tolerance,
-      'Alg-FragMassTol' => params.fragment_ion_tolerance,
-      'Alg-PreMassUnits' => apmu, ## mine
-      'Alg-IonSeries' => header.ion_series.split(':').last.lstrip,
-      'Alg-Enzyme' => header.enzyme.split(':').last,
-      'Alg-MSModel' => header.model,
-    }
-
-    if opt[:db_info]
-      if File.exist?(db_filename)
-        reply = get_db_info_for_sqt(db_filename)
-        %w(DBSeqLength DBLocusCount DBMD5Sum).zip(reply) do |label,val|
-          hh[label] = val
-        end
-      else
-        warn "file #{db_filename} does not exist, no extra db info in header!"
-      end
-    end
-
-    has_hits = (self.out_files.size > 0)
-    if has_hits
-      # somewhat redundant with above, but we can get this without a db present!
-      hh['DBLocusCount'] = self.out_files.first.db_locus_count
-    end
-
-    File.open(outfile, 'w') do |out|
-      # print the header:
-      invariant_ordering.each do |iv|
-        out.puts ['H', iv, hh.delete(iv)].join("\t")
-      end
-      hh.each do |k,v|
-        out.puts ['H', k, v].join("\t")
-      end
-      plural.each do |k,vals|
-        vals.each do |val|
-          out.puts ['H', k, val].join("\t")
-        end
-      end
-
-      ##### SPECTRA
-      time_to_process = '0.0'
-      #########################################
-      # NEED TO FIGURE OUT: (in spectra guy)
-      #    * Lowest Sp value for top 500 spectra
-      #    * Number of sequences matching this precursor ion 
-      #########################################
-
-      manual_validation_status = 'U'
-      self.out_files.zip(dta_files) do |out_file, dta_file|
-        # don't have the time to process (using 0.0 like bioworks 3.2)
-        dta_file_mh = dta_file.mh
-        out_file_total_inten = out_file.total_inten
-        out_file_lowest_sp = out_file.lowest_sp
-        if opt[:round]
-          dta_file_mh = round(dta_file_mh, mh_dp)
-          out_file_total_inten = round(out_file_total_inten, tic_dp)
-          out_file_lowest_sp = round(out_file_lowest_sp, sp_dp)
-        end
-
-        out.puts ['S', out_file.first_scan, out_file.last_scan, out_file.charge, time_to_process, out_file.computer, dta_file_mh, out_file_total_inten, out_file_lowest_sp, out_file.num_matched_peptides].join("\t")
-        out_file.hits.each_with_index do |hit,index|
-          hit_mh = hit.mh
-          hit_deltacn_orig_updated = hit.deltacn_orig_updated
-          hit_xcorr = hit.xcorr
-          hit_sp = hit.sp
-          if opt[:round]
-            hit_mh = round(hit_mh, mh_dp)
-            hit_deltacn_orig_updated = round(hit_deltacn_orig_updated, dcn_dp)
-            hit_xcorr = round(hit_xcorr, xcorr_dp)
-            hit_sp = round(hit_sp, sp_dp)
-          end
-          # note that the rank is determined by the order..
-          out.puts ['M', index+1, hit.rsp, hit_mh, hit_deltacn_orig_updated, hit_xcorr, hit_sp, hit.ions_matched, hit.ions_total, hit.sequence, manual_validation_status].join("\t")
-          hit.prots.each do |prot|
-            out.puts ['L', prot.first_entry].join("\t")
-          end
-        end
-      end
-    end # close the filehandle
-
   end
 
   # assumes the file exists and is readable
@@ -328,7 +148,6 @@ class Ms::Sequest::Srf
       fasta = Fasta.new(dbfile)
       [fasta.aa_seq_length, fasta.size, fasta.md5_sum]
   end
-
 
   # returns self
   def from_file(filename, peps, global_ref_hash)
@@ -433,7 +252,7 @@ END
   def read_out_files(fh,number_files, global_ref_hash, measured_mhs, unpack_35)
     out_files = Array.new(number_files)
     header.num_dta_files.times do |i|
-      out_files[i] = Ms::Sequest::Srf::OUT.new.from_io(fh, global_ref_hash, unpack_35)
+      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, global_ref_hash, unpack_35)
     end
     out_files
   end
@@ -616,11 +435,11 @@ class Ms::Sequest::Srf::DTA
 end
 
 
-Ms::Sequest::Srf::OUT = Arrayclass.new( %w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count) )
+Ms::Sequest::Srf::Out = Arrayclass.new( %w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count) )
 
 # 0=first_scan, 1=last_scan, 2=charge, 3=num_hits, 4=computer, 5=date_time, 6=hits, 7=total_inten, 8=lowest_sp, 9=num_matched_peptides, 10=db_locus_count
 
-class Ms::Sequest::Srf::OUT
+class Ms::Sequest::Srf::Out
   Unpack_32 = '@36vx2Z*@60Z*'
   Unpack_35 = '@36vx4Z*@62Z*'
 
@@ -632,7 +451,7 @@ class Ms::Sequest::Srf::OUT
       else
         ''
       end
-    "<Ms::Sequest::Srf::OUT  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
+    "<Ms::Sequest::Srf::Out  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
   end
     
   def from_io(fh, global_ref_hash, unpack_35)
@@ -649,14 +468,14 @@ class Ms::Sequest::Srf::OUT
     if ar.size > 0
       num_extra_references = 0
       num_hits.times do |i|
-        ar[i] = Ms::Sequest::Srf::OUT::Pep.new.from_io(fh, global_ref_hash, unpack_35)
+        ar[i] = Ms::Sequest::Srf::Out::Pep.new.from_io(fh, global_ref_hash, unpack_35)
         num_extra_references += ar[i].num_other_loci
       end
-      Ms::Sequest::Srf::OUT::Pep.read_extra_references(fh, num_extra_references, ar, global_ref_hash)
+      Ms::Sequest::Srf::Out::Pep.read_extra_references(fh, num_extra_references, ar, global_ref_hash)
       ## The xcorrs are already ordered by best to worst hit
       ## ADJUST the deltacn's to be meaningful for the top hit:
       ## (the same as bioworks and prophet)
-      Ms::Sequest::Srf::OUT::Pep.set_deltacn_from_deltacn_orig(ar)
+      Ms::Sequest::Srf::Out::Pep.set_deltacn_from_deltacn_orig(ar)
       #puts ar.map  {|a| a.deltacn }.join(", ")
     end
     self[6] = ar
@@ -688,11 +507,11 @@ end
 # srf = the srf object this scan came from
 
 
-Ms::Sequest::Srf::OUT::Pep = Arrayclass.new( %w(mh deltacn_orig sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated) )
+Ms::Sequest::Srf::Out::Pep = Arrayclass.new( %w(mh deltacn_orig sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated) )
 
 # 0=mh 1=deltacn_orig 2=sp 3=xcorr 4=id 5=num_other_loci 6=rsp 7=ions_matched 8=ions_total 9=sequence 10=prots 11=deltamass 12=ppm 13=aaseq 14=base_name 15=first_scan 16=last_scan 17=charge 18=srf 19=deltacn 20=deltacn_orig_updated
 
-class Ms::Sequest::Srf::OUT::Pep
+class Ms::Sequest::Srf::Out::Pep
   #include SpecID::Pep
 
   # creates the deltacn that is meaningful for the top hit (the deltacn_orig
@@ -769,7 +588,7 @@ class Ms::Sequest::Srf::OUT::Pep
     end
     st.push('>')
     st.join(' ')
-    #"<Ms::Sequest::Srf::OUT::Pep @mh=#{mh}, @deltacn=#{deltacn}, @sp=#{sp}, @xcorr=#{xcorr}, @id=#{id}, @rsp=#{rsp}, @ions_matched=#{ions_matched}, @ions_total=#{ions_total}, @sequence=#{sequence}, @prots(count)=#{prots.size}, @deltamass=#{deltamass}, @ppm=#{ppm} @aaseq=#{aaseq}, @base_name=#{base_name}, @first_scan=#{first_scan}, @last_scan=#{last_scan}, @charge=#{charge}, @srf(base_name)=#{srf.base_name}>"
+    #"<Ms::Sequest::Srf::Out::Pep @mh=#{mh}, @deltacn=#{deltacn}, @sp=#{sp}, @xcorr=#{xcorr}, @id=#{id}, @rsp=#{rsp}, @ions_matched=#{ions_matched}, @ions_total=#{ions_total}, @sequence=#{sequence}, @prots(count)=#{prots.size}, @deltamass=#{deltamass}, @ppm=#{ppm} @aaseq=#{aaseq}, @base_name=#{base_name}, @first_scan=#{first_scan}, @last_scan=#{last_scan}, @charge=#{charge}, @srf(base_name)=#{srf.base_name}>"
   end
   # extra_references_array is an array that grows with peptides as extra
   # references are discovered.
@@ -802,7 +621,7 @@ class Ms::Sequest::Srf::OUT::Pep
     if global_ref_hash.key? reference
       global_ref_hash[reference].peps << peptide
     else
-      global_ref_hash[reference] = Ms::Sequest::Srf::OUT::Prot.new(reference, [peptide])
+      global_ref_hash[reference] = Ms::Sequest::Srf::Out::Prot.new(reference, [peptide])
     end
     global_ref_hash[reference] 
   end
@@ -810,9 +629,9 @@ class Ms::Sequest::Srf::OUT::Pep
  end
 
 
-Ms::Sequest::Srf::OUT::Prot = Arrayclass.new( %w(reference peps) )
+Ms::Sequest::Srf::Out::Prot = Arrayclass.new( %w(reference peps) )
 
-class Ms::Sequest::Srf::OUT::Prot
+class Ms::Sequest::Srf::Out::Prot
   #include SpecID::Prot
   ## we shouldn't have to do this because this is inlcuded in SpecID::Prot, but
   ## under some circumstances it won't work without explicitly calling it.
@@ -828,11 +647,11 @@ class Ms::Sequest::Srf::OUT::Prot
   end
   $VERBOSE = tmp
 
-  #  "<Ms::Sequest::Srf::OUT::Prot reference=\"#{@reference}\">"
+  #  "<Ms::Sequest::Srf::Out::Prot reference=\"#{@reference}\">"
   
   undef_method :inspect
   def inspect
-    "<Ms::Sequest::Srf::OUT::Prot @reference=#{reference}, @peps(#)=#{peps.size}>"
+    "<Ms::Sequest::Srf::Out::Prot @reference=#{reference}, @peps(#)=#{peps.size}>"
   end
 end
 
@@ -950,7 +769,7 @@ class SRFGroup
           do_not_keep
         end
         if hits.size != before
-          Ms::Sequest::Srf::OUT::Pep.update_deltacns_from_xcorr(hits)
+          Ms::Sequest::Srf::Out::Pep.update_deltacns_from_xcorr(hits)
           out_file.num_hits = hits.size
         end
       end

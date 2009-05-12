@@ -8,9 +8,12 @@ EXTRA_RDOC_FILES = %w(README MIT-LICENSE History)
 LIB_FILES = Dir["lib/**/*.rb"]
 DIST_FILES =  LIB_FILES + EXTRA_RDOC_FILES
 
+
+require "lib/ms/sequest"  # to get the Version #
+
 gemspec = Gem::Specification.new do |s|
   s.name = NAME
-  s.version = "0.0.1"
+  s.version = Ms::Sequest::VERSION
   s.authors = ["John Prince"]
   s.email = "jtprince@gmail.com"
   s.homepage = "http://mspire.rubyforge.org/projects/#{NAME}/"
@@ -33,7 +36,7 @@ gemspec = Gem::Specification.new do |s|
 end
 
 Rake::GemPackageTask.new(gemspec) do |pkg|
-  pkg.need_tar = false
+  pkg.need_tar = true
 end
 
 desc 'Prints the gemspec manifest.'
