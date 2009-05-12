@@ -1,12 +1,12 @@
 require File.expand_path( File.dirname(__FILE__) + '/../../tap_spec_helper' )
 require File.expand_path( File.dirname(__FILE__) + '/srf_spec_helper' )
 
-
 require 'ms/sequest/srf'
 
 require 'fileutils'
 
 include SRFHelper
+include Ms
 
 #tfiles = File.dirname(__FILE__) + '/tfiles/'
 #tfiles_l = File.dirname(__FILE__) + '/tfiles_large/'
@@ -116,7 +116,7 @@ klass = SRF
 describe "#{klass} reading a corrupted file" do
   it 'should read a null file from an aborted run w/o failing (but gives error msg)' do
     file = TESTDATA + '/corrupted_900.srf'
-    error_msg = Tfiles + '/error_msg.tmp'
+    error_msg = + '/error_msg.tmp'
     File.open(error_msg, 'w') do |err_fh|
       $stderr = err_fh
       srf_obj = klass.new(file) 
