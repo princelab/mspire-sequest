@@ -1,142 +1,6 @@
 require File.expand_path( File.dirname(__FILE__) + '/../../tap_spec_helper' )
 
 require 'ms/sequest/sqt'
-require 'ms/sequest/srf'
-
-SpecHelperHeaderHash = {
-  'SQTGenerator' => 'mspire',
-  'SQTGeneratorVersion' => String,
-  'Database' => 'C:\\Xcalibur\\database\\ecoli_K12_ncbi_20060321.fasta',
-  'FragmentMasses' => 'AVG',
-  'PrecursorMasses' => 'AVG',
-  'StartTime' => nil, 
-  'Alg-MSModel' => 'LCQ Deca XP',
-  'Alg-PreMassUnits' => 'amu',
-  'DBLocusCount' => '4237',
-  'Alg-FragMassTol' => '1.0000',
-  'Alg-PreMassTol' => '1.4000',
-  'Alg-IonSeries' => '0 1 1 0.0 1.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0',
-  'Alg-Enzyme' => 'Trypsin(KR/P) (2)',
-  'Comment' => ['Created from Bioworks .srf file'],
-  'StaticMod' => ['C=160.1901','Cterm=10.1230','E=161.4455'],
-  'DynamicMod' => ['STY*=+79.97990', 'M#=+14.02660'],
-}
-
-SpecHelperOtherLines =<<END
-S	2	2	1	0.0	VELA	391.04541015625	3021.5419921875	0.0	0
-S	3	3	1	0.0	VELA	446.009033203125	1743.96911621094	0.0	122
-M	1	1	445.5769264522	0.0	0.245620265603065	16.6666660308838	1	6	R.SNSK.S	U
-L	gi|16128266|ref|NP_414815.1|
-END
-
-SpecHelperOtherLinesEnd =<<END
-L	gi|90111093|ref|NP_414704.4|
-M	10	17	1298.5350544522	0.235343858599663	0.823222815990448	151.717300415039	12	54	K.LQKIITNSY*K	U
-L	gi|90111124|ref|NP_414904.2|
-END
-
-describe 'converting a large srf to sqt' do
-  def del(file)
-    if File.exist?(file)
-      File.unlink(file)
-    end
-  end
-
-  # returns true or false
-  def header_hash_match(header_lines, hash)
-    header_lines.all? do |line|
-      (h, k, v) = line.chomp.split("\t")
-      if hash[k].is_a? Array
-        if hash[k].include?(v) 
-          true
-        else
-          puts "FAILED: "
-          p k
-          p v
-          p hash[k]
-          false
-        end
-      elsif hash[k] == String
-        v.is_a?(String)
-      else
-        if v == hash[k]
-          true
-        else
-          puts "FAILED: "
-          p k
-          p v
-          p hash[k]
-          false
-        end
-      end
-    end
-  end
-
-  spec_large do
-    before(:all) do
-      @file = Tfiles_l + '/opd1_static_diff_mods/000.srf'
-      @output = Tfiles_l + '/opd1_static_diff_mods/000.sqt.tmp'
-      @srf = SRF.new(@file)
-      @original_db_filename = @srf.header.db_filename
-    end
-    it 'converts without bothering with the database' do
-      @srf.to_sqt(@output)
-      @output.exist_as_a_file?.should be_true
-      lines = File.readlines(@output)
-      lines.size.must_equal 80910
-      header_lines = lines.grep(/^H/)
-      (header_lines.size > 10).should be_true
-      header_hash_match(header_lines, SpecHelperHeaderHash).should be_true
-      other_lines = lines.grep(/^[^H]/)
-      other_lines[0,4].join('').must_equal SpecHelperOtherLines
-      other_lines[-3,3].join('').must_equal SpecHelperOtherLinesEnd
-      del(@output)
-    end
-    it 'warns if the db path is incorrect and we want to update db info' do
-      # requires some knowledge of how the database file is extracted
-      # internally
-      wacky_path = '/not/a/real/path/wacky.fasta'
-      @srf.header.db_filename = wacky_path
-      my_error_string = ''
-      StringIO.open(my_error_string, 'w') do |strio|
-        $stderr = strio
-        @srf.to_sqt(@output, :db_info => true)
-      end
-      my_error_string.should include(wacky_path)
-      @srf.header.db_filename = @original_db_filename
-      $stderr = STDERR
-      @output.exist_as_a_file?.should be_true
-      IO.readlines(@output).size.must_equal 80910
-      del(@output)
-    end
-    it 'can get db info with correct path' do
-      @srf.to_sqt(@output, :db_info => true, :new_db_path => Tfiles_l + '/opd1_2runs_2mods/sequest33')
-      @output.exist_as_a_file?.should be_true
-      lines = IO.readlines(@output)
-      has_md5 = lines.any? do |line|
-        line =~ /DBMD5Sum\s+202b1d95e91f2da30191174a7f13a04e/
-      end
-      has_md5.should be_true
-
-      has_seq_len = lines.any? do |line|
-        # frozen
-        line =~ /DBSeqLength\s+1342842/
-      end
-      has_seq_len.should be_true
-      lines.size.must_equal 80912
-      del(@output)
-    end
-    it 'can update the Database' do
-      @srf.to_sqt(@output, :new_db_path => Tfiles_l + '/opd1_2runs_2mods/sequest33', :update_db_path => true)
-      regexp = Regexp.new("Database\t/.*/opd1_2runs_2mods/sequest33/ecoli_K12_ncbi_20060321.fasta")
-      updated_db = IO.readlines(@output).any? do |line|
-        line =~ regexp
-      end
-      updated_db.should be_true
-      del(@output)
-    end
-  end
-end
 
 HeaderHash = {}
 header_doublets = [
@@ -171,11 +35,10 @@ TestSpectra = {
 }
 
 
-describe SQT, ": reading a small sqt file" do
+class ReadingASmallSQTFile < MiniTest::Spec
   before(:each) do
-    file = Tfiles + '/small.sqt'
-    file.exist_as_a_file?.should be_true
-    @sqt = SQT.new(file)
+    file = TESTFILES + '/small.sqt'
+    @sqt = Ms::Sequest::SQT.new(file)
   end
 
   it 'can access header entries like a hash' do
@@ -191,7 +54,7 @@ describe SQT, ": reading a small sqt file" do
     header.database.must_equal HeaderHash['Database']
     # all working:
     HeaderHash.each do |k,v|
-      header.send(SQT::Header::KeysToAtts[k]).must_equal v
+      header.send(Ms::Sequest::SQT::Header::KeysToAtts[k]).must_equal v
     end
 
   end
@@ -202,7 +65,7 @@ describe SQT, ": reading a small sqt file" do
     [:first, :last, :seventeenth, :first_match_17, :last_match_17, :last_match_17_last_loci].each do |key|
       TestSpectra[key].each do |k,v|
         if v.is_a? Float
-          reply[key].send(k).should be_close(v, 0.0000000001)
+          reply[key].send(k).must_be_close_to(v, 0.0000000001)
         else
           reply[key].send(k).must_equal v
         end
@@ -214,33 +77,29 @@ describe SQT, ": reading a small sqt file" do
 
 end
 
-describe SQTGroup, ': acting as a SpecID on large files' do
-  spec_large do 
-    before(:each) do
-      file1 = Tfiles_l + '/opd1_2runs_2mods/sequest33/020.sqt'
-      file2 = Tfiles_l + '/opd1_2runs_2mods/sequest33/040.sqt'
-      file1.exist_as_a_file?.should be_true
-      file2.exist_as_a_file?.should be_true
-      @sqg = SQTGroup.new([file1, file2])
-    end
+class SQTGroup_ReadingFiles < MiniTest::Spec
+  before(:each) do
+    file1 = TESTFILES + '/small.sqt'
+    file2 = TESTFILES + '/small2.sqt'
+    @sqg = Ms::Sequest::SQTGroup.new([file1, file2])
+  end
 
-    it 'has peptide hits' do
-      peps = @sqg.peps
-      peps.size.must_equal 38512  # frozen
-      # first hit in 020
-      peps.first.sequence.must_equal 'R.Y#RLGGS#T#K.K'
-      peps.first.base_name.must_equal '020'
-      # last hit in 040
-      peps.last.sequence.must_equal 'K.NQTNNRFK.T'
-      peps.last.base_name.must_equal '040'
-    end
+  it 'has peptide hits' do
+    peps = @sqg.peps
+    peps.size.must_equal 86
+    # first hit in 020
+    peps.first.sequence.must_equal 'R.Y#RLGGS#T#K.K'
+    peps.first.base_name.must_equal 'small'
+    # last hit in 040
+    peps.last.sequence.must_equal 'K.T#IS#S#QK.K'
+    peps.last.base_name.must_equal 'small2'
+  end
 
-    it 'has prots' do
-      ## FROZEN:
-      @sqg.prots.size.must_equal 3994
-      sorted = @sqg.prots.sort_by {|v| v.reference }
-      sorted.first.reference.must_equal 'gi|16127996|ref|NP_414543.1|'
-      sorted.first.peps.size.must_equal 33
-    end
+  it 'has prots' do
+    ## FROZEN:
+    @sqg.prots.size.must_equal 72
+    sorted = @sqg.prots.sort_by {|v| v.reference }
+    sorted.first.reference.must_equal 'gi|16127996|ref|NP_414543.1|'
+    sorted.first.peps.size.must_equal 33
   end
 end

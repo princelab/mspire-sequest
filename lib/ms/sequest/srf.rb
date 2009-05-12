@@ -63,11 +63,11 @@ class Ms::Sequest::Srf
   end
 
   # peps and global_ref_hash are created as the srf files is read.  If the
-  # file is read as part of a group, then these should be passed in. 
-  # NOTE: if you want the hits filtered by precursor tolerance (the way they
-  # might be displayed in .out files) you should probably use SRFGroup (which
-  # does this by default)
-  # Ms::Sequest::Srf is meant to be a low level read of the file.
+  # file is read as part of a group, then these should be passed in.  NOTE: if
+  # you want the hits filtered by precursor tolerance (the way they might be
+  # displayed in .out files) you should probably use Ms::Sequest::SrfGroup
+  # (which does this by default) Ms::Sequest::Srf is meant to be a low level
+  # read of the file.
   def initialize(filename=nil, peps=[], global_ref_hash={})
     @dta_files = []
     @out_files = []
@@ -655,7 +655,7 @@ class Ms::Sequest::Srf::Out::Prot
   end
 end
 
-class SRFGroup
+class Ms::Sequest::SrfGroup
 
   ## the srf objects themselves
   attr_accessor :srfs, :filenames
@@ -678,7 +678,7 @@ class SRFGroup
       if filenames.is_a?(String) && filenames =~ /\.srg$/
         srg_filename = filenames.dup
         @filename = srg_filename
-        filenames = SRFGroup.srg_to_paths(filenames) 
+        filenames = Ms::Sequest::SrfGroup.srg_to_paths(filenames) 
         filenames.each do |file|
           if !File.exist? file
             puts "File: #{file} in #{srg_filename} does not exist!"
