@@ -9,11 +9,13 @@ require 'arrayclass'
 # in library
 require 'ms/id/peptide'
 require 'ms/id/protein'
+require 'ms/id/search'
 require 'ms/sequest/params'
 
 # for conversions
 require 'ms/sequest/srf/mgf'
 require 'ms/sequest/srf/sqt'
+require 'ms/sequest/srf/dta'
 
 module Ms ; end
 module Ms::Sequest ; end
@@ -31,9 +33,13 @@ class Ms::Sequest::Srf
   # [first_scan, last_scan, charge]
   attr_accessor :index
   attr_accessor :base_name
-  # this is the global peptides array
-  attr_accessor :peps
 
+  # a local peptide array
+  attr_accessor :peps
+  attr_accessor :prots
+
+  # a boolean to indicate if the results have been filtered by the
+  # sequest.params precursor mass tolerance
   attr_accessor :filtered_by_precursor_mass_tolerance 
 
   # returns a Sequest::Params object or nil if none
@@ -63,17 +69,27 @@ class Ms::Sequest::Srf
     end
   end
 
-  # peps and global_ref_hash are created as the srf files is read.  If the
-  # file is read as part of a group, then these should be passed in.  NOTE: if
-  # you want the hits filtered by precursor tolerance (the way they might be
-  # displayed in .out files) you should probably use Ms::Sequest::SrfGroup
-  # (which does this by default) Ms::Sequest::Srf is meant to be a low level
-  # read of the file.
-  def initialize(filename=nil, peps=[], global_ref_hash={})
+  # opts:
+  #     :filter_by_precursor_mass_tolerance => true | false (default true)
+  #     # this will filter by the sequest params prec tolerance as is
+  #     # typically done by Bioworks.
+  #
+  #     :link_protein_hits => true | false (default true)
+  #     # if true, generates the @prot attribute for the :prot method
+  #     #   and creates one protein per reference that is linked to each 
+  #     #   relevant peptide hit.
+  #     # if false, each protein for each peptide hit is a unique object 
+  #     # and the :prots method returns nil.  If you are merging multiple
+  #     # searches then you probably want to set this to false to avoid
+  #     # recalculation.
+  #
+  def initialize(filename=nil, opts={})
+    @peps = []
+
     @dta_files = []
     @out_files = []
     if filename
-      from_file(filename, peps, global_ref_hash)
+      from_file(filename, opts)
     end
   end
 
@@ -81,69 +97,57 @@ class Ms::Sequest::Srf
     sprintf("%.#{decimal_places}f", float)
   end
 
-  # not given an out_folder, will make one with the basename
-  # compress may be: :zip, :tgz, or nil (no compression)
-  # :zip requires gem rubyzip to be installed and is *very* bloated
-  # as it writes out all the files first!
-  # :tgz requires gem archive-tar-minitar to be installed
-  def to_dta_files(out_folder=nil, compress=nil)
-    outdir = 
-      if out_folder ; out_folder
-      else base_name
-      end
+  # 1. updates the out_file's list of hits based on passing peptides (but not
+  # the original hit id; rank is implicit in array ordering)
+  # 2. recalculates deltacn values completely if number of hits changed (does
+  # not touch deltacn orig)
+  #
+  # This can spoil proper protein -> peptide linkages.  Ms::Id::Search.merge!
+  # should be run after this method to ensure correct protein -> peptide
+  # linkages.
+  def filter_by_precursor_mass_tolerance!
+    pmt = params.peptide_mass_tolerance.to_f
+    methd = nil  # the method to 
 
-    case compress
-    when :tgz
-      begin
-        require 'archive/tar/minitar'
-      rescue LoadError
-        abort "need gem 'archive-tar-minitar' installed' for tgz compression!\n#{$!}"
-      end
-      require 'archive/targz'  # my own simplified interface!
-      require 'zlib'
-      names = index.map do |i_ar|
-        [outdir, '/', [base_name, *i_ar].join('.'), '.dta'].join('')
-      end
-      #Archive::Targz.archive_as_files(outdir + '.tgz', names, dta_file_data)
+    case params.peptide_mass_units
+    when '0'
+      amu_based = true
+      milli_amu = false
+    when '1'
+      amu_based = true
+      milli_amu = true
+    when '2'
+      amu_based = false
+    end
 
-      tgz = Zlib::GzipWriter.new(File.open(outdir + '.tgz', 'wb'))
-
-      Archive::Tar::Minitar::Output.open(tgz) do |outp|
-        dta_files.each_with_index do |dta_file, i|
-          Archive::Tar::Minitar.pack_as_file(names[i], dta_file.to_dta_file_data, outp)
-        end
-      end
-    when :zip
-      begin
-        require 'zip/zipfilesystem'
-      rescue LoadError
-        abort "need gem 'rubyzip' installed' for zip compression!\n#{$!}"
-      end
-      #begin ; require 'zip/zipfilesystem' ; rescue LoadError, "need gem 'rubyzip' installed' for zip compression!\n#{$!}" ; end
-      Zip::ZipFile.open(outdir + ".zip", Zip::ZipFile::CREATE) do |zfs|
-        dta_files.zip(index) do |dta,i_ar|
-          #zfs.mkdir(outdir)
-          zfs.get_output_stream(outdir + '/' + [base_name, *i_ar].join('.') + '.dta') do |out|
-            dta.write_dta_file(out)
-            #zfs.commit
+    srf.filtered_by_precursor_mass_tolerance = true
+    srf.out_files.each do |out_file|
+      hits = out_file.hits
+      before = hits.size
+      hits.reject! do |pep|
+        if amu_based
+          if milli_amu
+            (pep.deltamass.abs > (pmt/1000))
+          else
+            (pep.deltamass.abs > pmt)
           end
+        else
+          (pep.ppm.abs > pmt)
         end
       end
-    else  # no compression
-      FileUtils.mkpath(outdir)
-      Dir.chdir(outdir) do
-        dta_files.zip(index) do |dta,i_ar|
-          File.open([base_name, *i_ar].join('.') << '.dta', 'wb') do |out|
-            dta.write_dta_file(out)
-          end
-        end
+      if hits.size != before
+        out_file.hits = hits # <- is this necessary 
+        Ms::Sequest::Srf::Out::Pep.update_deltacns_from_xcorr(hits)
+        out_file.num_hits = hits.size
       end
     end
+    self
   end
 
-
   # returns self
-  def from_file(filename, peps, global_ref_hash)
+  # opts are the same as for 'new'
+  def from_file(filename, opts)
+    opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true}.merge(opts)
     params = Ms::Sequest::Srf.get_sequest_params(filename)
     dups_gt_0 = false
     if params
@@ -176,7 +180,7 @@ END
                   end
       @dta_files, measured_mhs = read_dta_files(fh,@header.num_dta_files, unpack_35)
 
-      @out_files = read_out_files(fh,@header.num_dta_files, global_ref_hash, measured_mhs, unpack_35)
+      @out_files = read_out_files(fh,@header.num_dta_files, measured_mhs, unpack_35)
       if fh.eof?
         #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
         @params = nil
@@ -189,7 +193,8 @@ END
       end
     end
 
-    ### UPDATE SOME THINGS ON SINGLE PASS:
+
+    ### UPDATE SOME THINGS:
     @base_name = @header.raw_filename.scan(/[\\\/]([^\\\/]+)\.RAW$/).first.first
     # give each hit a base_name, first_scan, last_scan
     @index.each_with_index do |ind,i|
@@ -197,7 +202,7 @@ END
       #puts @out_files[i].join(", ")
       @out_files[i][0,3] = *ind
       pep_hits = @out_files[i][6]
-      peps.push( *pep_hits )
+      @peps.push( *pep_hits )
       pep_hits.each do |pep_hit|
         pep_hit[14,4] = @base_name, *ind
         # add the deltamass
@@ -206,6 +211,13 @@ END
         pep_hit[18] = self  ## link with the srf object
       end
     end
+
+    filter_by_precursor_mass_tolerance!
+
+    if opts[:link_protein_hits]
+      (@peps, @prots) = Ms::Id::Search.merge!(peps)
+    end
+
     self
   end
 
@@ -242,10 +254,10 @@ END
 
   # filehandle (fh) must be at the start of the outfiles.  'read_dta_files'
   # will put the fh there.
-  def read_out_files(fh,number_files, global_ref_hash, measured_mhs, unpack_35)
+  def read_out_files(fh,number_files, measured_mhs, unpack_35)
     out_files = Array.new(number_files)
     header.num_dta_files.times do |i|
-      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, global_ref_hash, unpack_35)
+      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35)
     end
     out_files
   end
@@ -447,7 +459,7 @@ class Ms::Sequest::Srf::Out
     "<Ms::Sequest::Srf::Out  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
   end
 
-  def from_io(fh, global_ref_hash, unpack_35)
+  def from_io(fh, unpack_35)
     ## EMPTY out file is 96 bytes
     ## each hit is 320 bytes
     ## num_hits and charge:
@@ -461,10 +473,10 @@ class Ms::Sequest::Srf::Out
     if ar.size > 0
       num_extra_references = 0
       num_hits.times do |i|
-        ar[i] = Ms::Sequest::Srf::Out::Pep.new.from_io(fh, global_ref_hash, unpack_35)
+        ar[i] = Ms::Sequest::Srf::Out::Pep.new.from_io(fh, unpack_35)
         num_extra_references += ar[i].num_other_loci
       end
-      Ms::Sequest::Srf::Out::Pep.read_extra_references(fh, num_extra_references, ar, global_ref_hash)
+      Ms::Sequest::Srf::Out::Pep.read_extra_references(fh, num_extra_references, ar)
       ## The xcorrs are already ordered by best to worst hit
       ## ADJUST the deltacn's to be meaningful for the top hit:
       ## (the same as bioworks and prophet)
@@ -532,13 +544,13 @@ class Ms::Sequest::Srf::Out::Pep
     end
   end
 
-  def self.read_extra_references(fh, num_extra_references, pep_hits, global_ref_hash)
+  def self.read_extra_references(fh, num_extra_references, pep_hits)
     num_extra_references.times do
       # 80 bytes total (with index number)
       pep = pep_hits[fh.read(8).unpack('x4I').first - 1]
 
       ref = fh.read(80).unpack('A*').first
-      pep[10] << pep.new_protein(ref[0,38], pep, global_ref_hash)
+      pep[10] << Ms::Sequest::Srf::Out::Prot.new(ref[0,38])
     end
     #  fh.read(6) if unpack_35
   end
@@ -585,7 +597,7 @@ class Ms::Sequest::Srf::Out::Pep
   end
   # extra_references_array is an array that grows with peptides as extra
   # references are discovered.
-  def from_io(fh, global_ref_hash, unpack_35)
+  def from_io(fh, unpack_35)
     unpack = 
       if unpack_35 ; Unpack_35
       else ; Unpack_32
@@ -601,22 +613,13 @@ class Ms::Sequest::Srf::Out::Pep
 
     # we are slicing the reference to 38 chars to be the same length as
     # duplicate references
-    self[10] = [new_protein(self[10][0,38], self, global_ref_hash)]
+    self[10] = [Ms::Sequest::Srf::Out::Prot.new(self[10][0,38])]
 
     self[13] = Ms::Id::Peptide.sequence_to_aaseq(self[9])
 
     fh.read(6) if unpack_35
 
     self
-  end
-
-  def new_protein(reference, peptide, global_ref_hash)
-    if global_ref_hash.key? reference
-      global_ref_hash[reference].peps << peptide
-    else
-      global_ref_hash[reference] = Ms::Sequest::Srf::Out::Prot.new(reference, [peptide])
-    end
-    global_ref_hash[reference] 
   end
 
 end
@@ -648,131 +651,20 @@ class Ms::Sequest::Srf::Out::Prot
   end
 end
 
-class Ms::Sequest::SrfGroup
+class Ms::Sequest::SrfGroup < Ms::Id::SearchGroup
 
-  ## the srf objects themselves
-  attr_accessor :srfs, :filenames
-  ## also inherits :peps and :prots accessor
-  # an array of Ms::Sequest::Srf::Out::Pep objects
-  attr_accessor :peps
-  # an array of Ms::Sequest::Srf::Out::Prot objects
-  attr_accessor :prots
+  # inherets an array of Ms::Sequest::Srf::Out::Pep objects
+  # inherets an array of Ms::Sequest::Srf::Out::Prot objects
 
-  # takes an array of filenames
-  # or a single .srg filename
-  # see from_srg to load a single .srg file
-  # by default, the hits will be returned filtered by sequest params values.
-  # [The raw Ms::Sequest::Srf data is unfiltered!]
-  def initialize(filenames=nil, filter_hits_by_params=true)
-    @filenames = filenames
-    @peps = []
-    @prots = []
-    @srfs = []
-
-    # This is essentially duplicated in SqtGroup (should refactor eventually)
-    global_ref_hash = {}
-    if filenames
-      if filenames.is_a?(String) && filenames =~ /\.srg$/
-        srg_filename = filenames.dup
-        @filename = srg_filename
-        filenames = Ms::Sequest::SrfGroup.srg_to_paths(filenames) 
-        filenames.each do |file|
-          if !File.exist? file
-            puts "File: #{file} in #{srg_filename} does not exist!"
-            puts "Please modify #{srg_filename} to point to existing files."
-            abort
-          end
-        end
-      end
-      filenames.each do |file|
-        @srfs << Ms::Sequest::Srf.new(file, @peps, global_ref_hash)
-      end
-      @prots = global_ref_hash.values
-      if filter_hits_by_params
-        filter_by_peptide_mass_tolerance
-      end
+  # see Ms::Id::Search for acceptable arguments
+  # (filename, filenames, array of objects)
+  # opts = 
+  #     :filter_by_precursor_mass_tolerance => true | false (default true)
+  def initialize(*args, &block)
+    super(*args) do
+      (@peps, @prots) = merge!(@searches.map {|v| v.peps })
     end
-  end
-
-  # reads a srg file and delivers the path names
-  def self.srg_to_paths(file)
-    IO.readlines(file).grep(/\w/).map {|v| v.chomp } 
-  end
-
-
-  # if srfs were read in separately, then the proteins will need to be merged
-  # by their reference
-  def merge_different_sets(srfs)
-    raise NotImplementedError, "need to implement?"
-  end
-
-  # 1. sets @prots and returns it: a new list of proteins based on which
-  # peptides passed.
-  # 2. updates the out_file's list of hits based on passing peptides (but not
-  # the original hit id; rank is implicit in array ordering)
-  # 3. updates each protein to only include peptides passing thresholds.
-  # [Note, this process is how .out files are generated!]
-  # 4. recalculates deltacn values completely if number of hits changed (does
-  # not touch deltacn orig)
-  # ASSUMES: 
-  # A. all srfs have identical params objects and each has a
-  # peptide_mass_tolerance filter attribute.
-  # B. proteins are already unique (peptides referencing the same protein
-  # reference the same object already) In practice, this means all srfs were
-  # read in together.
-  def filter_by_peptide_mass_tolerance
-    prots_in_set = Set.new
-    params = @srfs.first.params
-    pmt = params.peptide_mass_tolerance.to_f
-    methd = nil  # the method to 
-
-    case params.peptide_mass_units
-    when '0'
-      amu_based = true
-      milli_amu = false
-    when '1'
-      amu_based = true
-      milli_amu = true
-    when '2'
-      amu_based = false
-    end
-
-    @srfs.each do |srf|
-      srf.filtered_by_precursor_mass_tolerance = true
-      srf.out_files.each do |out_file|
-        hits = out_file.hits
-        before = hits.size
-        hits.reject! do |pep|
-          do_not_keep =
-            if amu_based
-              if milli_amu
-                (pep.deltamass.abs > (pmt/1000))
-              else
-                (pep.deltamass.abs > pmt)
-              end
-            else
-              (pep.ppm.abs > pmt)
-            end
-          unless do_not_keep
-            pep.prots.each do |prot|
-              if prots_in_set.include?(prot)
-                prot.peps << pep
-              else
-                prots_in_set.add(prot)
-                prot.peps = [pep]
-              end
-            end
-          end
-          do_not_keep
-        end
-        if hits.size != before
-          Ms::Sequest::Srf::Out::Pep.update_deltacns_from_xcorr(hits)
-          out_file.num_hits = hits.size
-        end
-      end
-    end
-    @prots = prots_in_set.to_a
-
+    block.call(self) if block_given?
   end
 
   # returns the filename used

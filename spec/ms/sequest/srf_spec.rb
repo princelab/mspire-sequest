@@ -39,7 +39,7 @@ module SRFReaderBehavior
 
   def initialize(*args)
     super(*args)
-    @srf_obj = SRF.new(@file)
+    @srf_obj = Ms::Sequest::Srf.new(@file)
   end
 
   it 'retrieves correct header info' do
