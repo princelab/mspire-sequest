@@ -1,5 +1,4 @@
-#require 'sample_enzyme'
-
+require 'ms/mass/aa'
 
 # In the future, this guy should accept any version of bioworks params file
 # and spit out any param queried.
@@ -229,16 +228,20 @@ class Ms::Sequest::Params
     @opts["first_database_name"]
   end
 
-  ## returns the appropriate aminoacid mass lookup table (in spec_id.rb SpecID::MONO or
-  ## SpecID::AVG based on precursor_mass_type
-  #def mass_table
-  #  case precursor_mass_type
-  #  when 'average'
-  #    SpecID::AVG
-  #  when 'monoisotopic'
-  #    SpecID::MONO
-  #  end
-  #end
+  # returns the appropriate aminoacid mass lookup table from Ms::Mass::AA
+  # based_on may be :precursor or :fragment
+  def mass_index(based_on=:precursor)
+    reply = case based_on
+            when :precursor : precursor_mass_type
+            when :fragment : fragment_mass_type
+            end
+   case reply
+   when 'average'
+     Ms::Mass::AA::AVG
+   when 'monoisotopic'
+     Ms::Mass::AA::MONO
+   end
+  end
 
   # at least in Bioworks 3.2, the First number after the enzyme
   # is the indication of the enzymatic end stringency (required):

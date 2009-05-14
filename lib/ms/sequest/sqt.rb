@@ -1,5 +1,5 @@
 
-require 'fasta'
+require 'ms/fasta'
 require 'arrayclass'
 require 'set'
 
@@ -7,18 +7,12 @@ require 'ms/id/peptide'
 
 module Ms
   module Sequest
-    class SQTGroup
+    class SqtGroup
 
       attr_accessor :peps
       attr_accessor :prots
       attr_accessor :sqts, :filenames
 
-      # assumes the file exists and is readable
-      # returns [DBSeqLength, DBLocusCount, DBMD5Sum] or nil if no file
-      def self.get_db_info_for_sqt(dbfile)
-        fasta = Fasta.new(dbfile)
-        [fasta.aa_seq_length, fasta.size, fasta.md5_sum]
-      end
 
       # if filenames is a String, then it should be a filename to a file ending in
       # '.sqg' (meta text file with list of .sqt files) else it should be an array
@@ -45,7 +39,7 @@ module Ms
             end
           end
           @filenames.each do |file|
-            @sqts << Ms::Sequest::SQT.new(file, @peps, global_ref_hash)
+            @sqts << Ms::Sequest::Sqt.new(file, @peps, global_ref_hash)
           end
 
           @prots = global_ref_hash.values
@@ -71,7 +65,7 @@ module Ms
     end
 
 
-    class SQT
+    class Sqt
       PercolatorHeaderMatch = /^Percolator v/
         Delimiter = "\t"
       attr_accessor :header
@@ -79,6 +73,15 @@ module Ms
       attr_accessor :base_name
       # boolean
       attr_accessor :percolator_results
+
+      # assumes the file exists and is readable
+      # returns [DBSeqLength, DBLocusCount, DBMD5Sum] or nil if no file
+      def self.get_db_info(dbfile)
+        Ms::Fasta.open(dbfile) do |fasta|
+          [fasta.total_sequence_length, fasta.size, fasta.md5_sum]
+        end
+      end
+
 
       def initialize(filename=nil, peps=[], global_ref_hash={})
         if filename
@@ -92,11 +95,11 @@ module Ms
         @percolator_results = percolator_results
         @base_name = File.basename( filename.gsub('\\','/') ).sub(/\.\w+$/, '')
         File.open(filename) do |fh| 
-          @header = Ms::Sequest::SQT::Header.new.from_handle(fh)
+          @header = Ms::Sequest::Sqt::Header.new.from_handle(fh)
           if @header.keys.any? {|v| v =~ PercolatorHeaderMatch }
             @percolator_results = true
           end
-          @spectra = Ms::Sequest::SQT::Spectrum.spectra_from_handle(fh, @base_name, peps, global_ref_hash, @percolator_results)
+          @spectra = Ms::Sequest::Sqt::Spectrum.spectra_from_handle(fh, @base_name, peps, global_ref_hash, @percolator_results)
         end
       end
 
@@ -149,7 +152,7 @@ module Ms
           lines = []
           loop do 
             line = fh.gets
-            if line && (line[0,1] == Ms::Sequest::SQT::Header::Leader )
+            if line && (line[0,1] == Ms::Sequest::Sqt::Header::Leader )
               lines << line
             else # reset the fh.pos and we're done
               fh.pos = pos
@@ -163,9 +166,9 @@ module Ms
         def from_lines(array_of_header_lines)
           array_of_header_lines.each do |line|
             line.chomp!
-            (ky, *rest) = line.split(Ms::Sequest::SQT::Delimiter)[1..-1]
+            (ky, *rest) = line.split(Ms::Sequest::Sqt::Delimiter)[1..-1]
             # just in case they have any tabs in their field
-            value = rest.join(Ms::Sequest::SQT::Delimiter)
+            value = rest.join(Ms::Sequest::Sqt::Delimiter)
             if Arrayed.include?(ky)
               self[ky] << value
             elsif self.key? ky  # already exists
@@ -191,11 +194,11 @@ end
 
 # all are cast as expected (total_intensity is a float)
 # mh = observed mh
-Ms::Sequest::SQT::Spectrum = Arrayclass.new(%w[first_scan last_scan charge time_to_process node mh total_intensity lowest_sp num_matched_peptides matches])
+Ms::Sequest::Sqt::Spectrum = Arrayclass.new(%w[first_scan last_scan charge time_to_process node mh total_intensity lowest_sp num_matched_peptides matches])
 
 # 0=first_scan 1=last_scan 2=charge 3=time_to_process 4=node 5=mh 6=total_intensity 7=lowest_sp 8=num_matched_peptides 9=matches
 
-class Ms::Sequest::SQT::Spectrum
+class Ms::Sequest::Sqt::Spectrum
   Leader = 'S'
 
   # assumes the first line starts with an 'S'
@@ -204,16 +207,16 @@ class Ms::Sequest::SQT::Spectrum
     
     while line = fh.gets
       case line[0,1]
-      when Ms::Sequest::SQT::Spectrum::Leader
-        spectrum = Ms::Sequest::SQT::Spectrum.new.from_line( line )
+      when Ms::Sequest::Sqt::Spectrum::Leader
+        spectrum = Ms::Sequest::Sqt::Spectrum.new.from_line( line )
         spectra << spectrum
         matches = []
         spectrum.matches = matches
-      when Ms::Sequest::SQT::Match::Leader
+      when Ms::Sequest::Sqt::Match::Leader
         match_klass = if percolator_results
-                        Ms::Sequest::SQT::Match::Percolator
+                        Ms::Sequest::Sqt::Match::Percolator
                       else
-                        Ms::Sequest::SQT::Match
+                        Ms::Sequest::Sqt::Match
                       end
         match = match_klass.new.from_line( line )
         match[10,3] = spectrum[0,3]
@@ -223,14 +226,14 @@ class Ms::Sequest::SQT::Spectrum
         loci = []
         match.loci = loci
         matches << match
-      when Ms::Sequest::SQT::Locus::Leader
+      when Ms::Sequest::Sqt::Locus::Leader
         line.chomp!
-        key = line.split(Ms::Sequest::SQT::Delimiter)[1]
+        key = line.split(Ms::Sequest::Sqt::Delimiter)[1]
         locus =
           if global_ref_hash.key?(key)
             global_ref_hash[key]
           else
-            locus = Ms::Sequest::SQT::Locus.new.from_line( line )
+            locus = Ms::Sequest::Sqt::Locus.new.from_line( line )
             locus.peps = []
             global_ref_hash[key] = locus
           end
@@ -261,7 +264,7 @@ class Ms::Sequest::SQT::Spectrum
   # returns an array -> [the next spectra line (or nil if eof), spectrum]
   def from_line(line)
     line.chomp!
-    ar = line.split(Ms::Sequest::SQT::Delimiter)
+    ar = line.split(Ms::Sequest::Sqt::Delimiter)
     self[0] = ar[1].to_i
     self[1] = ar[2].to_i
     self[2] = ar[3].to_i
@@ -276,8 +279,8 @@ class Ms::Sequest::SQT::Spectrum
   end
 end
 
-# SQT format uses only indices 0 - 9
-Ms::Sequest::SQT::Match = Arrayclass.new(%w[rxcorr rsp mh deltacn_orig xcorr sp ions_matched ions_total sequence manual_validation_status first_scan last_scan charge deltacn aaseq base_name loci])
+# Sqt format uses only indices 0 - 9
+Ms::Sequest::Sqt::Match = Arrayclass.new(%w[rxcorr rsp mh deltacn_orig xcorr sp ions_matched ions_total sequence manual_validation_status first_scan last_scan charge deltacn aaseq base_name loci])
 
 # 0=rxcorr 1=rsp 2=mh 3=deltacn_orig 4=xcorr 5=sp 6=ions_matched 7=ions_total 8=sequence 9=manual_validation_status 10=first_scan 11=last_scan 12=charge 13=deltacn 14=aaseq 15=base_name 16=loci
 
@@ -287,7 +290,7 @@ Ms::Sequest::SQT::Match = Arrayclass.new(%w[rxcorr rsp mh deltacn_orig xcorr sp 
 # deltacn_orig
 # deltacn is the adjusted deltacn (like Bioworks - shift all scores up and
 # give the last one 1.1)
-class Ms::Sequest::SQT::Match
+class Ms::Sequest::Sqt::Match
   Leader = 'M'
 
   # same as 'loci'
@@ -297,7 +300,7 @@ class Ms::Sequest::SQT::Match
 
   def from_line(line)
     line.chomp!
-    ar = line.split(Ms::Sequest::SQT::Delimiter)
+    ar = line.split(Ms::Sequest::Sqt::Delimiter)
     self[0] = ar[1].to_i
     self[1] = ar[2].to_i
     self[2] = ar[3].to_f
@@ -314,7 +317,7 @@ class Ms::Sequest::SQT::Match
 end
 
 
-class Ms::Sequest::SQT::Match::Percolator < Ms::Sequest::SQT::Match
+class Ms::Sequest::Sqt::Match::Percolator < Ms::Sequest::Sqt::Match
   # we will keep access to these old terms since we can then access routines
   # that sort on xcorr...
   #undef_method :xcorr
@@ -343,9 +346,9 @@ class Ms::Sequest::SQT::Match::Percolator < Ms::Sequest::SQT::Match
   end
 end
 
-Ms::Sequest::SQT::Locus = Arrayclass.new(%w[locus description peps])
+Ms::Sequest::Sqt::Locus = Arrayclass.new(%w[locus description peps])
 
-class Ms::Sequest::SQT::Locus
+class Ms::Sequest::Sqt::Locus
   Leader = 'L'
  
   def first_entry ; self[0] end
@@ -353,7 +356,7 @@ class Ms::Sequest::SQT::Locus
 
   def from_line(line)
     line.chomp!
-    ar = line.split(Ms::Sequest::SQT::Delimiter)
+    ar = line.split(Ms::Sequest::Sqt::Delimiter)
     self[0] = ar[1]
     self[1] = ar[2]
     self

@@ -1,4 +1,8 @@
 
+require 'ms/sequest'
+require 'ms/sequest/srf'
+require 'ms/sequest/sqt'
+
 module Ms
   module Sequest
     class Srf
@@ -33,12 +37,12 @@ module Ms
           if params.precursor_mass_type == 'average' ; 'AVG'
           else ; 'MONO'
           end
-
-        mass_table = params.mass_table
+        
+        mass_index = params.mass_index
         static_mods = params.static_mods.map do |k,v|
           key =  k.split(/_/)[1]
           if key.size == 1
-            key + '=' + (mass_table[key.to_sym] + v.to_f).to_s
+            key + '=' + (mass_index[key.to_sym] + v.to_f).to_s
           else
             key + '=' + v
           end
@@ -73,8 +77,8 @@ module Ms
           end
 
         hh =  {
-          'SQTGenerator' => "mspire (ms-sequest #{Ms::Sequest::VERSION})",
-          'SQTGeneratorVersion' => Mspire::Version,
+          'SQTGenerator' => "mspire: ms-sequest",
+          'SQTGeneratorVersion' => Ms::Sequest::VERSION,
           'Database' => db_filename_in_sqt,
           'FragmentMasses' => fmt,
           'PrecursorMasses' => pmt,
@@ -89,7 +93,7 @@ module Ms
 
         if opt[:db_info]
           if File.exist?(db_filename)
-            reply = Ms::Sequest::Sqt.get_db_info_for_sqt(db_filename)
+            reply = Ms::Sequest::Sqt.get_db_info(db_filename)
             %w(DBSeqLength DBLocusCount DBMD5Sum).zip(reply) do |label,val|
               hh[label] = val
             end
@@ -159,7 +163,6 @@ module Ms
           end
         end # close the filehandle
       end # method
-
 
     end # Srf
   end # Sequest

@@ -8,6 +8,7 @@ require 'arrayclass'
 
 # in library
 require 'ms/id/peptide'
+require 'ms/id/protein'
 require 'ms/sequest/params'
 
 # for conversions
@@ -624,7 +625,7 @@ end
 Ms::Sequest::Srf::Out::Prot = Arrayclass.new( %w(reference peps) )
 
 class Ms::Sequest::Srf::Out::Prot
-  #include SpecID::Prot
+  include Ms::Id::Protein
   ## we shouldn't have to do this because this is inlcuded in SpecID::Prot, but
   ## under some circumstances it won't work without explicitly calling it.
   #include ProteinReferenceable 
@@ -668,7 +669,7 @@ class Ms::Sequest::SrfGroup
     @prots = []
     @srfs = []
 
-    # This is essentially duplicated in SQTGroup (should refactor eventually)
+    # This is essentially duplicated in SqtGroup (should refactor eventually)
     global_ref_hash = {}
     if filenames
       if filenames.is_a?(String) && filenames =~ /\.srg$/
