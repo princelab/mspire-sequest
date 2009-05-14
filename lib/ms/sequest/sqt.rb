@@ -1,3 +1,5 @@
+
+require 'fasta'
 require 'arrayclass'
 require 'set'
 
@@ -10,6 +12,13 @@ module Ms
       attr_accessor :peps
       attr_accessor :prots
       attr_accessor :sqts, :filenames
+
+      # assumes the file exists and is readable
+      # returns [DBSeqLength, DBLocusCount, DBMD5Sum] or nil if no file
+      def self.get_db_info_for_sqt(dbfile)
+        fasta = Fasta.new(dbfile)
+        [fasta.aa_seq_length, fasta.size, fasta.md5_sum]
+      end
 
       # if filenames is a String, then it should be a filename to a file ending in
       # '.sqg' (meta text file with list of .sqt files) else it should be an array

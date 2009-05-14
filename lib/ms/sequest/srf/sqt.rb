@@ -89,7 +89,7 @@ module Ms
 
         if opt[:db_info]
           if File.exist?(db_filename)
-            reply = get_db_info_for_sqt(db_filename)
+            reply = Ms::Sequest::Sqt.get_db_info_for_sqt(db_filename)
             %w(DBSeqLength DBLocusCount DBMD5Sum).zip(reply) do |label,val|
               hh[label] = val
             end
@@ -159,6 +159,8 @@ module Ms
           end
         end # close the filehandle
       end # method
+
+
     end # Srf
   end # Sequest
 end # Ms

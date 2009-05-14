@@ -2,25 +2,24 @@ require File.expand_path( File.dirname(__FILE__) + '/../../../tap_spec_helper' )
 
 require 'ms/sequest/srf'
 
-class SrfToSqtSpec < MiniTest::Spec
-  SpecHelperHeaderHash = {
-    'SQTGenerator' => 'mspire',
-    'SQTGeneratorVersion' => String,
-    'Database' => 'C:\\Xcalibur\\database\\ecoli_K12_ncbi_20060321.fasta',
-    'FragmentMasses' => 'AVG',
-    'PrecursorMasses' => 'AVG',
-    'StartTime' => nil, 
-    'Alg-MSModel' => 'LCQ Deca XP',
-    'Alg-PreMassUnits' => 'amu',
-    'DBLocusCount' => '4237',
-    'Alg-FragMassTol' => '1.0000',
-    'Alg-PreMassTol' => '1.4000',
-    'Alg-IonSeries' => '0 1 1 0.0 1.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0',
-    'Alg-Enzyme' => 'Trypsin(KR/P) (2)',
-    'Comment' => ['Created from Bioworks .srf file'],
-    'StaticMod' => ['C=160.1901','Cterm=10.1230','E=161.4455'],
-    'DynamicMod' => ['STY*=+79.97990', 'M#=+14.02660'],
-  }
+SpecHelperHeaderHash = {
+  'SQTGenerator' => 'mspire',
+  'SQTGeneratorVersion' => String,
+  'Database' => 'C:\\Xcalibur\\database\\ecoli_K12_ncbi_20060321.fasta',
+  'FragmentMasses' => 'AVG',
+  'PrecursorMasses' => 'AVG',
+  'StartTime' => nil, 
+  'Alg-MSModel' => 'LCQ Deca XP',
+  'Alg-PreMassUnits' => 'amu',
+  'DBLocusCount' => '4237',
+  'Alg-FragMassTol' => '1.0000',
+  'Alg-PreMassTol' => '1.4000',
+  'Alg-IonSeries' => '0 1 1 0.0 1.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0',
+  'Alg-Enzyme' => 'Trypsin(KR/P) (2)',
+  'Comment' => ['Created from Bioworks .srf file'],
+  'StaticMod' => ['C=160.1901','Cterm=10.1230','E=161.4455'],
+  'DynamicMod' => ['STY*=+79.97990', 'M#=+14.02660'],
+}
 
   SpecHelperOtherLines =<<END
 S	2	2	1	0.0	VELA	391.04541015625	3021.5419921875	0.0	0
@@ -35,7 +34,8 @@ M	10	17	1298.5350544522	0.235343858599663	0.823222815990448	151.717300415039	12	
 L	gi|90111124|ref|NP_414904.2|
 END
 
-describe 'converting a large srf to sqt' do
+# 'converting a large srf to sqt'
+class SRF_TO_SQT < MiniTest::Spec
   def del(file)
     if File.exist?(file)
       File.unlink(file)

@@ -32,7 +32,7 @@ class Ms::Sequest::Srf
   attr_accessor :base_name
   # this is the global peptides array
   attr_accessor :peps
-  
+
   attr_accessor :filtered_by_precursor_mass_tolerance 
 
   # returns a Sequest::Params object or nil if none
@@ -140,14 +140,6 @@ class Ms::Sequest::Srf
     end
   end
 
-  end
-
-  # assumes the file exists and is readable
-  # returns [DBSeqLength, DBLocusCount, DBMD5Sum] or nil if no file
-  def get_db_info_for_sqt(dbfile)
-      fasta = Fasta.new(dbfile)
-      [fasta.aa_seq_length, fasta.size, fasta.md5_sum]
-  end
 
   # returns self
   def from_file(filename, peps, global_ref_hash)
@@ -172,7 +164,7 @@ END
     File.open(filename, "rb") do |fh|
       @header = Ms::Sequest::Srf::Header.new.from_io(fh)      
       @version = @header.version
-      
+
       unpack_35 = case @version
                   when '3.2'
                     false
@@ -182,7 +174,7 @@ END
                     true
                   end
       @dta_files, measured_mhs = read_dta_files(fh,@header.num_dta_files, unpack_35)
-      
+
       @out_files = read_out_files(fh,@header.num_dta_files, global_ref_hash, measured_mhs, unpack_35)
       if fh.eof?
         #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
@@ -286,7 +278,7 @@ class Ms::Sequest::Srf::Header
   Byte_length_v32 = {
     :modifications => 456,
   }
- 
+
   # a Ms::Sequest::Srf::DTAGen object
   attr_accessor :version
   attr_accessor :dta_gen
@@ -391,7 +383,7 @@ class Ms::Sequest::Srf::DTA
     if self[7] ; peaks_st = "[#{self[7].size} bytes]" end
     "<Ms::Sequest::Srf::DTA @mh=#{mh} @dta_tic=#{dta_tic} @num_peaks=#{num_peaks} @charge=#{charge} @ms_level=#{ms_level} @total_num_possible_charge_states=#{total_num_possible_charge_states} @peaks=#{peaks_st} >"
   end
-    
+
   def from_io(fh, unpack_35)
     if unpack_35
       @unpack = Unpack_35
@@ -406,7 +398,7 @@ class Ms::Sequest::Srf::DTA
     st = fh.read(@read_header)
     # get the bulk of the data in single unpack
     self[0,7] = st.unpack(@unpack)
-    
+
     # Scan numbers are given at the end in an index!
     st2 = fh.read(@read_spacer)
 
@@ -417,14 +409,14 @@ class Ms::Sequest::Srf::DTA
   end
 
   def to_dta_file_data
-     string = "#{round(mh, 6)} #{charge}\r\n"
-     peak_ar = peaks.unpack('e*')
-     (0...(peak_ar.size)).step(2) do |i|
-       # %d is equivalent to floor, so we round by adding 0.5!
-       string << "#{round(peak_ar[i], 4)} #{(peak_ar[i+1] + 0.5).floor}\r\n"
-       #string << peak_ar[i,2].join(' ') << "\r\n"
-     end
-     string
+    string = "#{round(mh, 6)} #{charge}\r\n"
+    peak_ar = peaks.unpack('e*')
+    (0...(peak_ar.size)).step(2) do |i|
+      # %d is equivalent to floor, so we round by adding 0.5!
+      string << "#{round(peak_ar[i], 4)} #{(peak_ar[i+1] + 0.5).floor}\r\n"
+      #string << peak_ar[i,2].join(' ') << "\r\n"
+    end
+    string
   end
 
   # write a class dta file to the io object
@@ -453,7 +445,7 @@ class Ms::Sequest::Srf::Out
       end
     "<Ms::Sequest::Srf::Out  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
   end
-    
+
   def from_io(fh, global_ref_hash, unpack_35)
     ## EMPTY out file is 96 bytes
     ## each hit is 320 bytes
@@ -609,7 +601,7 @@ class Ms::Sequest::Srf::Out::Pep
     # we are slicing the reference to 38 chars to be the same length as
     # duplicate references
     self[10] = [new_protein(self[10][0,38], self, global_ref_hash)]
-    
+
     self[13] = Ms::Id::Peptide.sequence_to_aaseq(self[9])
 
     fh.read(6) if unpack_35
@@ -626,7 +618,7 @@ class Ms::Sequest::Srf::Out::Pep
     global_ref_hash[reference] 
   end
 
- end
+end
 
 
 Ms::Sequest::Srf::Out::Prot = Arrayclass.new( %w(reference peps) )
@@ -648,7 +640,7 @@ class Ms::Sequest::Srf::Out::Prot
   $VERBOSE = tmp
 
   #  "<Ms::Sequest::Srf::Out::Prot reference=\"#{@reference}\">"
-  
+
   undef_method :inspect
   def inspect
     "<Ms::Sequest::Srf::Out::Prot @reference=#{reference}, @peps(#)=#{peps.size}>"
