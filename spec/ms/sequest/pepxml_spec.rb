@@ -1,4 +1,5 @@
 
+=begin
 require File.expand_path( File.dirname(__FILE__) + '/../../spec_helper' )
 
 require 'spec_id'
@@ -372,3 +373,4 @@ describe 'bioworks file with modifications transformed into pepxml' do
   end
 end
 
+=end

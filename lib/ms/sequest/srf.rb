@@ -21,6 +21,9 @@ module Ms ; end
 module Ms::Sequest ; end
 
 class Ms::Sequest::Srf
+  include Ms::Id::Search
+
+  # inherits peps and prots from Search
 
   # a String: 3.5, 3.3 or 3.2
   attr_accessor :version
@@ -34,13 +37,13 @@ class Ms::Sequest::Srf
   attr_accessor :index
   attr_accessor :base_name
 
-  # a local peptide array
-  attr_accessor :peps
-  attr_accessor :prots
-
   # a boolean to indicate if the results have been filtered by the
   # sequest.params precursor mass tolerance
   attr_accessor :filtered_by_precursor_mass_tolerance 
+
+  def protein_class
+    Ms::Sequest::Srf::Out::Prot
+  end
 
   # returns a Sequest::Params object or nil if none
   def self.get_sequest_params(filename)
@@ -120,8 +123,8 @@ class Ms::Sequest::Srf
       amu_based = false
     end
 
-    srf.filtered_by_precursor_mass_tolerance = true
-    srf.out_files.each do |out_file|
+    self.filtered_by_precursor_mass_tolerance = true
+    self.out_files.each do |out_file|
       hits = out_file.hits
       before = hits.size
       hits.reject! do |pep|
@@ -212,10 +215,12 @@ END
       end
     end
 
-    filter_by_precursor_mass_tolerance!
+    filter_by_precursor_mass_tolerance! if params
 
     if opts[:link_protein_hits]
-      (@peps, @prots) = Ms::Id::Search.merge!(peps)
+      (@peps, @prots) = merge!([peps]) do |_prot, _peps|
+        prot = Ms::Sequest::Srf::Out::Prot.new(_prot.reference, _peps)
+      end
     end
 
     self
@@ -651,7 +656,8 @@ class Ms::Sequest::Srf::Out::Prot
   end
 end
 
-class Ms::Sequest::SrfGroup < Ms::Id::SearchGroup
+class Ms::Sequest::SrfGroup 
+  include Ms::Id::SearchGroup
 
   # inherets an array of Ms::Sequest::Srf::Out::Pep objects
   # inherets an array of Ms::Sequest::Srf::Out::Prot objects
@@ -660,11 +666,22 @@ class Ms::Sequest::SrfGroup < Ms::Id::SearchGroup
   # (filename, filenames, array of objects)
   # opts = 
   #     :filter_by_precursor_mass_tolerance => true | false (default true)
-  def initialize(*args, &block)
-    super(*args) do
-      (@peps, @prots) = merge!(@searches.map {|v| v.peps })
+  def initialize(arg, opts={}, &block)
+    orig_opts = opts.dup
+    indiv_opts = { :link_protein_hits => false }
+    super(arg, opts.merge(indiv_opts)) do
+      unless orig_opts[:link_protein_hits] == false
+        puts "MERGING GROUP!"
+        (@peps, @prots) = merge!(@searches.map {|v| v.peps }) do |_prot, _peps|
+          Ms::Sequest::Srf::Out::Prot.new(_prot.reference, _peps)
+        end
+      end
     end
     block.call(self) if block_given?
+  end
+
+  def search_class
+    Ms::Sequest::Srf
   end
 
   # returns the filename used

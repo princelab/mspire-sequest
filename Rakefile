@@ -6,8 +6,10 @@ require 'rake/gempackagetask'
 NAME = 'ms-sequest'
 EXTRA_RDOC_FILES = %w(README MIT-LICENSE History)
 LIB_FILES = Dir["lib/**/*.rb"]
+
 DIST_FILES =  LIB_FILES + EXTRA_RDOC_FILES
 
+LEAVE_OUT = %w(lib/ms/sequest/bioworks.rb lib/ms/sequest/pepxml.rb lib/ms/sequest/srf/dta.rb lib/ms/sequest/srf/mgf.rb)
 
 require "lib/ms/sequest"  # to get the Version #
 
@@ -32,7 +34,13 @@ gemspec = Gem::Specification.new do |s|
   
   # list extra rdoc files like README here.
   s.extra_rdoc_files = EXTRA_RDOC_FILES
-  s.files = DIST_FILES
+  s.files = DIST_FILES - LEAVE_OUT
+end
+
+desc "the files going to be in the gem"
+task :files do
+  puts "FILES in GEM:"
+  puts "  " + gemspec.files.join("\n")
 end
 
 Rake::GemPackageTask.new(gemspec) do |pkg|

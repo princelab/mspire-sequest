@@ -4,68 +4,56 @@ require 'arrayclass'
 require 'set'
 
 require 'ms/id/peptide'
+require 'ms/id/search'
 
 module Ms
   module Sequest
     class SqtGroup
+      include Ms::Id::SearchGroup
 
-      attr_accessor :peps
-      attr_accessor :prots
-      attr_accessor :sqts, :filenames
+      #attr_accessor :sqts, :filenames
 
-
-      # if filenames is a String, then it should be a filename to a file ending in
-      # '.sqg' (meta text file with list of .sqt files) else it should be an array
-      # of sqt filenames
-      def initialize(filenames=nil)
-        @filenames = filenames
-        @prots = []
-        @peps = []
-        @sqts = []
-
-        global_ref_hash = {}
-        ## This is duplicated in SRFGroup (should refactor eventually)
-        if filenames
-          if filenames.is_a?(String) && filenames =~ /\.sqg$/
-            srg_filename = filenames.dup
-            @filename = srg_filename
-            @filenames = IO.readlines(filenames).grep(/\w/).map {|v| v.chomp } 
-            @filenames.each do |file|
-              if !File.exist? file
-                puts "File: #{file} in #{srg_filename} does not exist!"
-                puts "Please modify #{srg_filename} to point to existing files."
-                abort
-              end
-            end
-          end
-          @filenames.each do |file|
-            @sqts << Ms::Sequest::Sqt.new(file, @peps, global_ref_hash)
-          end
-
-          @prots = global_ref_hash.values
-        end
+      def search_class
+        Ms::Sequest::Sqt
       end
 
-      # NOTE THAT this is copy/paste from srf.rb, should be refactored...
-      # returns the filename used
-      # if the file exists, the name will be expanded to full path, otherwise just
-      # what is given
-      def to_sqg(sqg_filename='bioworks.sqg')
-        File.open(sqg_filename, 'w') do |v|
-          @filenames.each do |sqt_file|
-            if File.exist? sqt_file
-              v.puts File.expand_path(sqt_file)
-            else
-              v.puts sqt_file
-            end
+      def extension() 'sqg' end
+
+      def initialize(arg, opts={}, &block)
+        orig_opts = opts.dup
+        indiv_opts = { :link_protein_hits => false }
+        super(arg, opts.merge(indiv_opts)) do
+          unless orig_opts[:link_protein_hits] == false
+            puts "MERGING GROUP!"
+            (@peps, @prots) = merge!(@searches.map {|v| v.peps }, &Ms::Sequest::Sqt::NEW_PROT)
           end
         end
-        sqg_filename
+        block.call(self) if block_given?
       end
-    end
+
+
+      #      # NOTE THAT this is copy/paste from srf.rb, should be refactored...
+      ## returns the filename used
+      ## if the file exists, the name will be expanded to full path, otherwise just
+      ## what is given
+      #def to_sqg(sqg_filename='bioworks.sqg')
+      #File.open(sqg_filename, 'w') do |v|
+      #@filenames.each do |sqt_file|
+      #if File.exist? sqt_file
+      #v.puts File.expand_path(sqt_file)
+      #else
+      #v.puts sqt_file
+      #end
+      #end
+      #end
+      #sqg_filename
+      #end
+
+    end # SqtGroup
 
 
     class Sqt
+      include Ms::Id::Search
       PercolatorHeaderMatch = /^Percolator v/
         Delimiter = "\t"
       attr_accessor :header
@@ -82,24 +70,41 @@ module Ms
         end
       end
 
+      def protein_class
+        Ms::Sequest::Sqt::Locus
+      end
 
-      def initialize(filename=nil, peps=[], global_ref_hash={})
+      # opts = 
+      #     :percolator_results => false | true (default false)
+      #     :link_protein_hits => true | false (default true)
+      def initialize(filename=nil, opts={})
+        @peps = []
+        @prots = []
         if filename
-          from_file(filename, peps, global_ref_hash)
+          from_file(filename, opts)
         end
       end
 
+      NEW_PROT = lambda do |_prot, _peps| 
+        Ms::Sequest::Sqt::Locus.new([_prot.locus, _prot.description, _peps])
+      end
+
       # if the file contains the header key '/$Percolator v/' then the results
-      # will be interpreted as percolator results
-      def from_file(filename, peps=[], global_ref_hash={}, percolator_results=false)
-        @percolator_results = percolator_results
+      # will be interpreted as percolator results regardless of the value
+      # passed in.
+      def from_file(filename, opts={})
+        opts = {:percolator_results=>false, :link_protein_hits => true}.merge(opts)
+        @percolator_results = opts[:percolator_results]
         @base_name = File.basename( filename.gsub('\\','/') ).sub(/\.\w+$/, '')
         File.open(filename) do |fh| 
           @header = Ms::Sequest::Sqt::Header.new.from_handle(fh)
           if @header.keys.any? {|v| v =~ PercolatorHeaderMatch }
             @percolator_results = true
           end
-          @spectra = Ms::Sequest::Sqt::Spectrum.spectra_from_handle(fh, @base_name, peps, global_ref_hash, @percolator_results)
+          (@spectra, @peps) = Ms::Sequest::Sqt::Spectrum.spectra_from_handle(fh, @base_name, @percolator_results)
+        end
+        if opts[:link_protein_hits]
+          (@peps, @prots) = merge!([@peps], &NEW_PROT)
         end
       end
 
@@ -202,7 +207,8 @@ class Ms::Sequest::Sqt::Spectrum
   Leader = 'S'
 
   # assumes the first line starts with an 'S'
-  def self.spectra_from_handle(fh, base_name, peps=[], global_ref_hash={}, percolator_results=false)
+  def self.spectra_from_handle(fh, base_name, percolator_results=false)
+    peps = []
     spectra = []
     
     while line = fh.gets
@@ -229,21 +235,13 @@ class Ms::Sequest::Sqt::Spectrum
       when Ms::Sequest::Sqt::Locus::Leader
         line.chomp!
         key = line.split(Ms::Sequest::Sqt::Delimiter)[1]
-        locus =
-          if global_ref_hash.key?(key)
-            global_ref_hash[key]
-          else
-            locus = Ms::Sequest::Sqt::Locus.new.from_line( line )
-            locus.peps = []
-            global_ref_hash[key] = locus
-          end
-        locus.peps << match
+        locus = Ms::Sequest::Sqt::Locus.new.from_line( line )
         loci << locus
       end
     end
     # set the deltacn:
     set_deltacn(spectra)
-    spectra
+    [spectra, peps]
   end
 
   def self.set_deltacn(spectra)
@@ -350,7 +348,7 @@ Ms::Sequest::Sqt::Locus = Arrayclass.new(%w[locus description peps])
 
 class Ms::Sequest::Sqt::Locus
   Leader = 'L'
- 
+
   def first_entry ; self[0] end
   def reference ; self[0] end
 
