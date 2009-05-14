@@ -652,6 +652,10 @@ class Ms::Sequest::SrfGroup
   ## the srf objects themselves
   attr_accessor :srfs, :filenames
   ## also inherits :peps and :prots accessor
+  # an array of Ms::Sequest::Srf::Out::Pep objects
+  attr_accessor :peps
+  # an array of Ms::Sequest::Srf::Out::Prot objects
+  attr_accessor :prots
 
   # takes an array of filenames
   # or a single .srg filename
