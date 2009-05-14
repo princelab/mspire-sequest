@@ -1,3 +1,8 @@
 == 0.0.1 / 2009-05-11
 
 * pulled out of mspire core
+
+== 0.0.2 / 2009-05-14
+
+* Basic SRF to SQT translation working
+* SQT reading working
