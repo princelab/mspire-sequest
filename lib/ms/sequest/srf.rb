@@ -202,7 +202,6 @@ END
     # give each hit a base_name, first_scan, last_scan
     @index.each_with_index do |ind,i|
       mass_measured = @dta_files[i][0]
-      #puts @out_files[i].join(", ")
       @out_files[i][0,3] = *ind
       pep_hits = @out_files[i][6]
       @peps.push( *pep_hits )
@@ -212,6 +211,9 @@ END
         pep_hit[11] = pep_hit[0] - mass_measured  # real - measured (deltamass)
         pep_hit[12] = 1.0e6 * pep_hit[11].abs / mass_measured ## ppm
         pep_hit[18] = self  ## link with the srf object
+        if pep_hit.first_scan == 5719
+          puts [pep_hit.sequence, pep_hit.xcorr].join(' ')
+        end
       end
     end
 
@@ -518,7 +520,6 @@ end
 
 
 Ms::Sequest::Srf::Out::Pep = Arrayclass.new( %w(mh deltacn_orig sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated) )
-
 # 0=mh 1=deltacn_orig 2=sp 3=xcorr 4=id 5=num_other_loci 6=rsp 7=ions_matched 8=ions_total 9=sequence 10=prots 11=deltamass 12=ppm 13=aaseq 14=base_name 15=first_scan 16=last_scan 17=charge 18=srf 19=deltacn 20=deltacn_orig_updated
 
 class Ms::Sequest::Srf::Out::Pep

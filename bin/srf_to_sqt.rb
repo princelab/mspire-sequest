@@ -35,6 +35,9 @@ end
 ARGV.each do |file|
   raise "file #{file} must be named .srf" if file !~ /\.srf$/i
   new_filename = file.sub(/\.srf$/i, '.sqt')
-  SRFGroup.new([file], opt['filter']).srfs.first.to_sqt(new_filename, :db_info => opt['db-info'], :new_db_path => opt['db-path'], :update_db_path => opt['db-update'], :round => opt['round'])
+
+  srf = Ms::Sequest::Srf.new(file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt['filter'])
+
+  srf.to_sqt(new_filename, :db_info => opt['db-info'], :new_db_path => opt['db-path'], :update_db_path => opt['db-update'], :round => opt['round'])
 end
 
