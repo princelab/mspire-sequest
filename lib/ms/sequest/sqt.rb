@@ -3,6 +3,9 @@ require 'ms/fasta'
 require 'arrayclass'
 require 'set'
 
+require 'digest/md5'
+
+
 require 'ms/id/peptide'
 require 'ms/id/search'
 
@@ -65,9 +68,21 @@ module Ms
       # assumes the file exists and is readable
       # returns [DBSeqLength, DBLocusCount, DBMD5Sum] or nil if no file
       def self.get_db_info(dbfile)
+        chunksize = 61440
+          
+        fastasize = 0
+        total_sequence_length = 0
         Ms::Fasta.open(dbfile) do |fasta|
-          [fasta.total_sequence_length, fasta.size, fasta.md5_sum]
+          fasta.each {|entry| total_sequence_length += entry.sequence.size }
+          fastasize = fasta.size
         end
+        digest = Digest::MD5.new
+        File.open(dbfile) do |io|
+          while chunk = io.read(chunksize)
+            digest << chunk 
+          end
+        end
+        [total_sequence_length, fastasize, digest.hexdigest]
       end
 
       def protein_class

@@ -1,7 +1,9 @@
 require 'rubygems'
 require 'minitest/spec'
 require 'tap'
-require 'tap/spec'
+require 'tap/test'
+
+MiniTest::Unit.autorun
 
 class Class
   def xit(name, &block)
