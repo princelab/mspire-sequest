@@ -96,9 +96,6 @@ class Ms::Sequest::Srf
     end
   end
 
-  def round(float, decimal_places)
-    sprintf("%.#{decimal_places}f", float)
-  end
 
   # 1. updates the out_file's list of hits based on passing peptides (but not
   # the original hit id; rank is implicit in array ordering)
@@ -393,6 +390,7 @@ class Ms::Sequest::Srf::DTA
   Unpack_32 = "EeIvvvv"
   Unpack_35 = "Ex8eVx2vvvv"
 
+
   # note on peaks (self[7])
   # this is a byte array of floats, you can get the peaks out with
   # unpack("e*")
@@ -442,6 +440,10 @@ class Ms::Sequest::Srf::DTA
   # write a class dta file to the io object
   def write_dta_file(io)
     io.print to_dta_file_data
+  end
+
+  def round(float, decimal_places)
+    sprintf("%.#{decimal_places}f", float)
   end
 
 end
