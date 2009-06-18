@@ -1,8 +1,8 @@
 
-require 'ms/fasta'
 require 'arrayclass'
 require 'set'
 
+require 'ms/fasta'
 require 'digest/md5'
 
 
@@ -65,24 +65,37 @@ module Ms
       # boolean
       attr_accessor :percolator_results
 
-      # assumes the file exists and is readable
-      # returns [DBSeqLength, DBLocusCount, DBMD5Sum] or nil if no file
-      def self.get_db_info(dbfile)
-        chunksize = 61440
-          
-        fastasize = 0
+      # returns [sequence_length, locus_count] of the fasta file
+      def self.db_seq_length_and_locus_count(dbfile)
         total_sequence_length = 0
+        fastasize = 0
         Ms::Fasta.open(dbfile) do |fasta|
           fasta.each {|entry| total_sequence_length += entry.sequence.size }
           fastasize = fasta.size
         end
+        [total_sequence_length, fastasize]
+      end
+
+      #--
+      # this is implemented separate from sequence length because seq length
+      # uses Archive which doesn't preserve carriage returns and newlines.
+      #++
+      def self.db_md5sum(dbfile)
+        chunksize = 61440
         digest = Digest::MD5.new
         File.open(dbfile) do |io|
           while chunk = io.read(chunksize)
             digest << chunk 
           end
         end
-        [total_sequence_length, fastasize, digest.hexdigest]
+        digest.hexdigest
+      end
+
+      # assumes the file exists and is readable
+      # returns [DBSeqLength, DBLocusCount, DBMD5Sum]
+      def self.db_info(dbfile)
+        # returns the 3 member array
+        self.db_seq_length_and_locus_count(dbfile) << self.db_md5sum(dbfile)
       end
 
       def protein_class

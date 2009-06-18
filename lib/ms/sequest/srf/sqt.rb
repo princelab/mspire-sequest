@@ -94,7 +94,7 @@ module Ms
 
         if opt[:db_info]
           if File.exist?(db_filename)
-            reply = Ms::Sequest::Sqt.get_db_info(db_filename)
+            reply = Ms::Sequest::Sqt.db_info(db_filename)
             %w(DBSeqLength DBLocusCount DBMD5Sum).zip(reply) do |label,val|
               hh[label] = val
             end
@@ -165,8 +165,8 @@ module Ms
         end # close the filehandle
       end # method
 
-      # Srftosqt::task convert .srf to .sqt files
-      class Srftosqt < Tap::Task
+      # SrfToSqt::task convert .srf to .sqt files
+      class SrfToSqt < Tap::Task
         config :db_info, false, :short => 'd', &c.flag   # calculates num aa's and md5sum on db
         # if your database path has changed
         # and you want db-info, then give the
@@ -174,20 +174,18 @@ module Ms
         # e.g. /my/new/path 
         config :db_path, nil, :short => 'p'              
         config :db_update, false, :short => 'u', &c.flag # update the sqt file to reflect --db_path
-        config :filter, true, :short => 'n', &c.flag     # by default, pephit must be within peptide_mass_tolerance (defined in params) to be displayed.  Turns this off.
+        config :no_filter, false, :short => 'n', &c.flag # by default, pephit must be within peptide_mass_tolerance (defined in sequest.params) to be included.  Turns this off.
         config :round, false, :short => 'r', &c.flag     # round floating point values reasonably
 
         def process(srf_file)
-          raise "file #{srf_file} must be named .srf" if srf_file !~ /\.srf$/i
-          new_filename = srf_file.sub(/\.srf$/i, '.sqt')
-          puts "FILTER: #{filter}"
+          new_filename = srf_file.sub(/\.srf$/i, '') << '.sqt'
 
-          srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => filter)
+          srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => !no_filter)
 
           srf.to_sqt(new_filename, :db_info => db_info, :new_db_path => db_path, :update_db_path => db_update, :round => round)
 
         end # process
-      end # Srftosqt
+      end # SrfToSqt
     end # Srf
   end # Sequest
 end # Ms

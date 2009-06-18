@@ -1,4 +1,8 @@
 
+== 0.0.4 / 2009-06-18
+
+* srf_to_sqt.rb and srf_to_search.rb both working now
+
 == 0.0.3 / 2009-06-16
 
 * only dependent on very simple ms/fasta interface, no more on digest info, etc.

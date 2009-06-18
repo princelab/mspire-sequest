@@ -13,9 +13,8 @@ require 'ms/id/search'
 require 'ms/sequest/params'
 
 # for conversions
-require 'ms/sequest/srf/mgf'
+require 'ms/sequest/srf/search'
 require 'ms/sequest/srf/sqt'
-require 'ms/sequest/srf/dta'
 
 module Ms ; end
 module Ms::Sequest ; end

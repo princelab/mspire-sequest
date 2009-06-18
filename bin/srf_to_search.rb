@@ -2,13 +2,13 @@
 
 require 'rubygems'
 require 'tap/task'
-require 'ms/sequest/srf/sqt'
+require 'ms/sequest/srf/search'
 
 if ARGV.size == 0
   ARGV << "--help"
 end
 
-task_class = Ms::Sequest::Srf::SrfToSqt
+task_class = Ms::Sequest::Srf::SrfToSearch
 
 parser = ConfigParser.new do |opts|
   opts.separator "configurations"
@@ -16,20 +16,14 @@ parser = ConfigParser.new do |opts|
  
   opts.on "--help", "Print this help" do
     puts "usage: #{File.basename(__FILE__)} <file>.srf ..."
-    puts "outputs: <file>.sqt ..."
     puts
-    #puts task_class::desc.wrap
-    #puts
     puts opts
-    #puts
-    #puts "in tap workflow: tap run -- glob '*.srf' --:i srf_to_sqt"
     exit(0)
   end
 end
 
 parser.parse!(ARGV)
  
-
 task = task_class.new(parser.config)
 
 ARGV.each do |file|

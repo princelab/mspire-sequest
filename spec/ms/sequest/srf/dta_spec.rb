@@ -27,18 +27,19 @@ class SRF_TO_DTA < MiniTest::Spec
     assert File.exist?(@output)
     assert File.directory?(@output)
     # frozen (not verified):
-    Dir[@output + "/*.*"].size.must_equal 3893
+    Dir[@output + "/*.*"].size.must_equal 3893 # the correct number files
 
     first_file = @output + '/000.2.2.1.dta'
     assert File.exist?(first_file) 
     IO.read(first_file).must_equal SRF_TO_DTA_HELPER::FIRST_SCAN.gsub("\n", "\r\n")
-    last_file = @output + '/000.3748.3748.dta'
+    last_file = @output + '/000.3748.3748.3.dta'
     IO.read(last_file).must_equal SRF_TO_DTA_HELPER::LAST_SCAN.gsub("\n", "\r\n")
 
     del(@output)
   end
 end
 
+# these have been checked against Bioworks .dta output
 class SRF_TO_DTA_HELPER
   FIRST_SCAN = <<FINISH
 391.045410 1
