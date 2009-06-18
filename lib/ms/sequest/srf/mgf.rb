@@ -21,17 +21,16 @@ module Ms
         File.open(filename, 'wb') do |out|
           dta_files.zip(index) do |dta, i_ar|
             chrg = dta.charge
-            out.puts 'BEGIN IONS'
-            out.puts "TITLE=#{[base_name, *i_ar].push('dta').join('.')}"
-            out.puts "CHARGE=#{chrg}+"
-            out.puts "PEPMASS=#{(dta.mh+((chrg-1)*h_plus))/chrg}"
+            out.print "BEGIN IONS\n"
+            out.print "TITLE=#{[base_name, *i_ar].push('dta').join('.')}\n"
+            out.print "CHARGE=#{chrg}+\n"
+            out.print "PEPMASS=#{(dta.mh+((chrg-1)*h_plus))/chrg}\n"
             peak_ar = dta.peaks.unpack('e*')
             (0...(peak_ar.size)).step(2) do |i|
-              out.puts( peak_ar[i,2].join(' ') )
+              out.print( peak_ar[i,2].join(' '), "\n")
             end
-            out.puts ''
-            out.puts 'END IONS'
-            out.puts ''
+            out.print "END IONS\n"
+            out.print "\n"
           end
         end
       end
