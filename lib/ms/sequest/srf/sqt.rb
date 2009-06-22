@@ -1,5 +1,4 @@
 require 'tap/task'
-require 'configurable'
 require 'ms/sequest'
 require 'ms/sequest/srf'
 require 'ms/sequest/sqt'
@@ -59,8 +58,7 @@ module Ms
           'Comment' => ['Created from Bioworks .srf file']
         }
 
-
-        db_filename = header.db_filename
+        db_filename = header.db_filename.sub(/\.hdr$/, '') # remove the .hdr postfix
         db_filename_in_sqt = db_filename
         if opt[:new_db_path]
           db_filename = File.join(opt[:new_db_path], File.basename(db_filename.gsub('\\', '/')))

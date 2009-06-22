@@ -148,19 +148,22 @@ class Ms::Sequest::Srf
   def from_file(filename, opts)
     opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true}.merge(opts)
     params = Ms::Sequest::Srf.get_sequest_params(filename)
-    dups_gt_0 = false
+    dup_references = 0
     if params
-      dups = params.print_duplicate_references
-      if dups == '0'
+      dup_references = params.print_duplicate_references.to_i
+      if dup_references == 0
         warn <<END
-***************************************************************************
-For complete protein <=> peptide linkages, .srf files must be created with
-print_duplicate_references > 0. To capture all duplicate references, set the
-sequest parameter 'print_duplicate_references' to 100 or greater.
-***************************************************************************
+*****************************************************************************
+WARNING: This srf file lists only 1 protein per peptide! (based on the
+print_duplicate_references parameter in the sequest.params file used in its
+creation)  So, downstream output will likewise only contain a single protein
+for each peptide hit.  In many instances this is OK since downstream programs
+will recalculate protein-to-peptide linkages from the database file anyway.
+For complete protein lists per peptide hit, .srf files must be created with
+print_duplicate_references > 0. HINT: to capture all duplicate references, 
+set the sequest parameter 'print_duplicate_references' to 100 or greater.
+*****************************************************************************
 END
-      else
-        dups_gt_0 = true
       end
     else
     end
@@ -179,7 +182,7 @@ END
                   end
       @dta_files, measured_mhs = read_dta_files(fh,@header.num_dta_files, unpack_35)
 
-      @out_files = read_out_files(fh,@header.num_dta_files, measured_mhs, unpack_35)
+      @out_files = read_out_files(fh,@header.num_dta_files, measured_mhs, unpack_35, dup_references)
       if fh.eof?
         #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
         @params = nil
@@ -257,10 +260,10 @@ END
 
   # filehandle (fh) must be at the start of the outfiles.  'read_dta_files'
   # will put the fh there.
-  def read_out_files(fh,number_files, measured_mhs, unpack_35)
+  def read_out_files(fh,number_files, measured_mhs, unpack_35, dup_references)
     out_files = Array.new(number_files)
     header.num_dta_files.times do |i|
-      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35)
+      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35, dup_references)
     end
     out_files
   end
@@ -467,7 +470,7 @@ class Ms::Sequest::Srf::Out
     "<Ms::Sequest::Srf::Out  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
   end
 
-  def from_io(fh, unpack_35)
+  def from_io(fh, unpack_35, dup_references)
     ## EMPTY out file is 96 bytes
     ## each hit is 320 bytes
     ## num_hits and charge:
@@ -484,6 +487,7 @@ class Ms::Sequest::Srf::Out
         ar[i] = Ms::Sequest::Srf::Out::Pep.new.from_io(fh, unpack_35)
         num_extra_references += ar[i].num_other_loci
       end
+      num_extra_references = dup_references if num_extra_references > dup_references
       Ms::Sequest::Srf::Out::Pep.read_extra_references(fh, num_extra_references, ar)
       ## The xcorrs are already ordered by best to worst hit
       ## ADJUST the deltacn's to be meaningful for the top hit:

@@ -1,6 +1,8 @@
 
+require 'tap/task'
 require 'ms/sequest/srf'
 require 'ms/mass'
+
 
 # These are for outputting formats used in MS/MS Search engines
 

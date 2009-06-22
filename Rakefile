@@ -9,7 +9,7 @@ LIB_FILES = Dir["lib/**/*.rb"]
 
 DIST_FILES =  LIB_FILES + EXTRA_RDOC_FILES
 
-LEAVE_OUT = %w(lib/ms/sequest/bioworks.rb lib/ms/sequest/pepxml.rb lib/ms/sequest/srf/dta.rb)
+LEAVE_OUT = %w(lib/ms/sequest/bioworks.rb lib/ms/sequest/pepxml.rb)
 
 require "lib/ms/sequest"  # to get the Version #
 
