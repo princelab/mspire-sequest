@@ -1,3 +1,8 @@
+== 0.0.6 / 2009-06-26
+
+* fixed bug affecting only version 0.0.5 in srf reader affecting any file where print_duplicate_references was less than the number of protein references found for a peptide, but also > 0.
+* so, the srf reader now robustly supports reading srf files regardless of print_duplicate_references setting.
+
 == 0.0.5 / 2009-06-22
 
 * fixed handling of files with print_duplicate_references = 0

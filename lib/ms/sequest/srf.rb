@@ -149,6 +149,7 @@ class Ms::Sequest::Srf
     opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true}.merge(opts)
     params = Ms::Sequest::Srf.get_sequest_params(filename)
     dup_references = 0
+    dup_refs_gt_0 = false
     if params
       dup_references = params.print_duplicate_references.to_i
       if dup_references == 0
@@ -164,8 +165,11 @@ print_duplicate_references > 0. HINT: to capture all duplicate references,
 set the sequest parameter 'print_duplicate_references' to 100 or greater.
 *****************************************************************************
 END
+      else
+        dup_refs_gt_0 = true
       end
     else
+      warn "no params file found in srf, could be truncated file!"
     end
 
     File.open(filename, "rb") do |fh|
@@ -182,7 +186,7 @@ END
                   end
       @dta_files, measured_mhs = read_dta_files(fh,@header.num_dta_files, unpack_35)
 
-      @out_files = read_out_files(fh,@header.num_dta_files, measured_mhs, unpack_35, dup_references)
+      @out_files = read_out_files(fh,@header.num_dta_files, measured_mhs, unpack_35, dup_refs_gt_0)
       if fh.eof?
         #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
         @params = nil
@@ -210,9 +214,6 @@ END
         pep_hit[11] = pep_hit[0] - mass_measured  # real - measured (deltamass)
         pep_hit[12] = 1.0e6 * pep_hit[11].abs / mass_measured ## ppm
         pep_hit[18] = self  ## link with the srf object
-        if pep_hit.first_scan == 5719
-          puts [pep_hit.sequence, pep_hit.xcorr].join(' ')
-        end
       end
     end
 
@@ -260,10 +261,10 @@ END
 
   # filehandle (fh) must be at the start of the outfiles.  'read_dta_files'
   # will put the fh there.
-  def read_out_files(fh,number_files, measured_mhs, unpack_35, dup_references)
+  def read_out_files(fh,number_files, measured_mhs, unpack_35, dup_refs_gt_0)
     out_files = Array.new(number_files)
     header.num_dta_files.times do |i|
-      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35, dup_references)
+      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35, dup_refs_gt_0)
     end
     out_files
   end
@@ -470,7 +471,7 @@ class Ms::Sequest::Srf::Out
     "<Ms::Sequest::Srf::Out  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
   end
 
-  def from_io(fh, unpack_35, dup_references)
+  def from_io(fh, unpack_35, dup_refs_gt_0)
     ## EMPTY out file is 96 bytes
     ## each hit is 320 bytes
     ## num_hits and charge:
@@ -487,13 +488,13 @@ class Ms::Sequest::Srf::Out
         ar[i] = Ms::Sequest::Srf::Out::Pep.new.from_io(fh, unpack_35)
         num_extra_references += ar[i].num_other_loci
       end
-      num_extra_references = dup_references if num_extra_references > dup_references
-      Ms::Sequest::Srf::Out::Pep.read_extra_references(fh, num_extra_references, ar)
+      if dup_refs_gt_0
+        Ms::Sequest::Srf::Out::Pep.read_extra_references(fh, num_extra_references, ar)
+      end
       ## The xcorrs are already ordered by best to worst hit
       ## ADJUST the deltacn's to be meaningful for the top hit:
       ## (the same as bioworks and prophet)
       Ms::Sequest::Srf::Out::Pep.set_deltacn_from_deltacn_orig(ar)
-      #puts ar.map  {|a| a.deltacn }.join(", ")
     end
     self[6] = ar
     self
@@ -677,7 +678,6 @@ class Ms::Sequest::SrfGroup
     indiv_opts = { :link_protein_hits => false }
     super(arg, opts.merge(indiv_opts)) do
       unless orig_opts[:link_protein_hits] == false
-        puts "MERGING GROUP!"
         (@peps, @prots) = merge!(@searches.map {|v| v.peps }) do |_prot, _peps|
           Ms::Sequest::Srf::Out::Prot.new(_prot.reference, _peps)
         end
