@@ -42,7 +42,7 @@ module Ms
         static_mods = params.static_mods.map do |k,v|
           key =  k.split(/_/)[1]
           if key.size == 1
-            key + '=' + (mass_index[key.to_sym] + v.to_f).to_s
+            key + '=' + (mass_index[key] + v.to_f).to_s
           else
             key + '=' + v
           end

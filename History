@@ -1,3 +1,7 @@
+== 0.0.7 / 2009-06-26
+
+* minor bug fix in srf to sqt output in compatibility with current ms-core ms/mass tables
+
 == 0.0.6 / 2009-06-26
 
 * fixed bug affecting only version 0.0.5 in srf reader affecting any file where print_duplicate_references was less than the number of protein references found for a peptide, but also > 0.
