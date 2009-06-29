@@ -48,7 +48,7 @@ class Ms::Sequest::Srf
   def self.get_sequest_params(filename)
     # split the file in half and only read the second half (since we can be
     # confident that the params file will be there!)
-    File.open(filename) do |handle|
+    File.open(filename, 'rb') do |handle|
       halfway = handle.stat.size / 2
       handle.seek halfway
       last_half = handle.read
@@ -172,7 +172,7 @@ END
       warn "no params file found in srf, could be truncated file!"
     end
 
-    File.open(filename, "rb") do |fh|
+    File.open(filename, 'rb') do |fh|
       @header = Ms::Sequest::Srf::Header.new.from_io(fh)      
       @version = @header.version
 
