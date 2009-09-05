@@ -94,11 +94,13 @@ class Ms::Sequest::Params
     hash
   end
 
-  # returns self
+  # returns self or nil if no sequest found in the io
   def parse_io(fh)
     # seek to the SEQUEST file
-    loop do
-      if fh.gets =~ @@sequest_line
+    loop
+      line = fh.gets
+      return nil if line.nil?  # we return nil if we reach then end of the file without seeing sequest params
+      if line =~ @@sequest_line
         # double check that we are in a sequest params file:
         pos = fh.pos
         if fh.gets =~ /^first_database_name/

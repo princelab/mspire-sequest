@@ -57,8 +57,7 @@ class Ms::Sequest::Srf
         handle.seek(params_start_index)
         Ms::Sequest::Params.new.parse_io(handle)
       else
-        warn "#{filename} has no SEQUEST information, may be a truncated/corrupt file!"
-        nil
+        nil  # not found
       end
     end
   end
@@ -85,6 +84,9 @@ class Ms::Sequest::Srf
   #     # searches then you probably want to set this to false to avoid
   #     # recalculation.
   #
+  #     :read_pephits => true | false (default true)
+  #     # will attempt to read peptide hit information (equivalent to .out
+  #     # files), otherwise, just reads the dta information.
   def initialize(filename=nil, opts={})
     @peps = []
 
@@ -146,7 +148,7 @@ class Ms::Sequest::Srf
   # returns self
   # opts are the same as for 'new'
   def from_file(filename, opts)
-    opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true}.merge(opts)
+    opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true, :read_pephits => true}.merge(opts)
     params = Ms::Sequest::Srf.get_sequest_params(filename)
     dup_references = 0
     dup_refs_gt_0 = false
@@ -169,7 +171,7 @@ END
         dup_refs_gt_0 = true
       end
     else
-      warn "no params file found in srf, could be truncated file!"
+      warn "no params file found in srf, could be combined file or truncated/corrupt file!"
     end
 
     File.open(filename, 'rb') do |fh|
@@ -186,17 +188,25 @@ END
                   end
       @dta_files, measured_mhs = read_dta_files(fh,@header.num_dta_files, unpack_35)
 
-      @out_files = read_out_files(fh,@header.num_dta_files, measured_mhs, unpack_35, dup_refs_gt_0)
-      if fh.eof?
-        #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
-        @params = nil
-        @index = []
-      else
-        @params = Ms::Sequest::Params.new.parse_io(fh)
+      if opts[:read_pephits]
+        @out_files = read_out_files(fh,@header.num_dta_files, measured_mhs, unpack_35, dup_refs_gt_0)
+        if fh.eof?
+          #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
+          @params = nil
+          @index = []
+        end
+      end
+      start_pos = fh.pos
+      @params = Ms::Sequest::Params.new.parse_io(fh)
+      if @params.nil?
+        fh.pos = start_pos
+        # seek to the index
+        fh.scanf "\000\000\000\000"  
+      else # we have a params file
         # This is very sensitive to the grab_params method in sequest params
         fh.read(12)  ## gap between last params entry and index 
-        @index = read_scan_index(fh,@header.num_dta_files)
       end
+      @index = read_scan_index(fh,@header.num_dta_files)
     end
 
 
@@ -419,6 +429,7 @@ class Ms::Sequest::Srf::DTA
     st = fh.read(@read_header)
     # get the bulk of the data in single unpack
     self[0,7] = st.unpack(@unpack)
+    p self
 
     # Scan numbers are given at the end in an index!
     st2 = fh.read(@read_spacer)
