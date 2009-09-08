@@ -75,7 +75,7 @@ class Ms::Sequest::Params
     hash = {}
     in_add_amino_acid_section = false
     add_section_re = /^\s*add_/
-    prev_pos = nil
+      prev_pos = nil
     while line = fh.gets
       if line =~ add_section_re
         in_add_amino_acid_section = true
@@ -97,7 +97,7 @@ class Ms::Sequest::Params
   # returns self or nil if no sequest found in the io
   def parse_io(fh)
     # seek to the SEQUEST file
-    loop
+    loop do
       line = fh.gets
       return nil if line.nil?  # we return nil if we reach then end of the file without seeing sequest params
       if line =~ @@sequest_line
@@ -237,12 +237,12 @@ class Ms::Sequest::Params
             when :precursor : precursor_mass_type
             when :fragment : fragment_mass_type
             end
-   case reply
-   when 'average'
-     Ms::Mass::AA::AVG
-   when 'monoisotopic'
-     Ms::Mass::AA::MONO
-   end
+    case reply
+    when 'average'
+      Ms::Mass::AA::AVG
+    when 'monoisotopic'
+      Ms::Mass::AA::MONO
+    end
   end
 
   # at least in Bioworks 3.2, the First number after the enzyme

@@ -1,4 +1,5 @@
 require 'tap/task'
+require 'ms/calc'
 require 'ms/sequest'
 require 'ms/sequest/srf'
 require 'ms/sequest/sqt'
@@ -136,9 +137,9 @@ module Ms
             out_file_total_inten = out_file.total_inten
             out_file_lowest_sp = out_file.lowest_sp
             if opt[:round]
-              dta_file_mh = round(dta_file_mh, mh_dp)
-              out_file_total_inten = round(out_file_total_inten, tic_dp)
-              out_file_lowest_sp = round(out_file_lowest_sp, sp_dp)
+              dta_file_mh = Ms::Calc.round(dta_file_mh, mh_dp)
+              out_file_total_inten = Ms::Calc.round(out_file_total_inten, tic_dp)
+              out_file_lowest_sp = Ms::Calc.round(out_file_lowest_sp, sp_dp)
             end
 
             out.puts ['S', out_file.first_scan, out_file.last_scan, out_file.charge, time_to_process, out_file.computer, dta_file_mh, out_file_total_inten, out_file_lowest_sp, out_file.num_matched_peptides].join("\t")
@@ -148,10 +149,10 @@ module Ms
               hit_xcorr = hit.xcorr
               hit_sp = hit.sp
               if opt[:round]
-                hit_mh = round(hit_mh, mh_dp)
-                hit_deltacn_orig_updated = round(hit_deltacn_orig_updated, dcn_dp)
-                hit_xcorr = round(hit_xcorr, xcorr_dp)
-                hit_sp = round(hit_sp, sp_dp)
+                hit_mh = Ms::Calc.round(hit_mh, mh_dp)
+                hit_deltacn_orig_updated = Ms::Calc.round(hit_deltacn_orig_updated, dcn_dp)
+                hit_xcorr = Ms::Calc.round(hit_xcorr, xcorr_dp)
+                hit_sp = Ms::Calc.round(hit_sp, sp_dp)
               end
               # note that the rank is determined by the order..
               out.puts ['M', index+1, hit.rsp, hit_mh, hit_deltacn_orig_updated, hit_xcorr, hit_sp, hit.ions_matched, hit.ions_total, hit.sequence, manual_validation_status].join("\t")

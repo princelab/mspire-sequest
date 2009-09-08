@@ -145,6 +145,21 @@ class Ms::Sequest::Srf
     self
   end
 
+  def read_dta_and_out_interleaved(fh, num_files, unpack_35, dup_refs_gt_0)
+    dta_files = Array.new(num_files)
+    out_files = Array.new(num_files)
+    start = dta_start_byte
+    fh.pos = start
+
+    num_files.times do |i|
+      dta_files[i] = Ms::Sequest::Srf::DTA.new.from_io(fh, unpack_35) 
+      #p dta_files[i]
+      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35, dup_refs_gt_0)
+      #p out_files[i]
+    end
+    [dta_files, out_files]
+  end
+
   # returns self
   # opts are the same as for 'new'
   def from_file(filename, opts)
@@ -186,20 +201,32 @@ END
                   when '3.5'
                     true
                   end
-      @dta_files, measured_mhs = read_dta_files(fh,@header.num_dta_files, unpack_35)
 
-      if opts[:read_pephits]
-        @out_files = read_out_files(fh,@header.num_dta_files, measured_mhs, unpack_35, dup_refs_gt_0)
-        if fh.eof?
-          #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
-          @params = nil
-          @index = []
+      if @header.combined
+        @base_name = File.basename(filename, '.*')
+        # I'm not sure why this is the case, but the reported number is too
+        # big by one on the 2 files I've seen so far, so we will correct it here!
+        @header.dta_gen.num_dta_files = @header.dta_gen.num_dta_files - 1
+        if opts[:read_pephits] == false
+          raise NotImplementedError, "on combined files must read everything right now!"
+        end
+        (@dta_files, @out_files) = read_dta_and_out_interleaved(fh, @header.num_dta_files, unpack_35, dup_refs_gt_0)
+      else
+        @base_name = @header.raw_filename.scan(/[\\\/]([^\\\/]+)\.RAW$/).first.first
+        @dta_files = read_dta_files(fh, @header.num_dta_files, unpack_35)
+        if opts[:read_pephits]
+          @out_files = read_out_files(fh,@header.num_dta_files, unpack_35, dup_refs_gt_0)
+          if fh.eof?
+            #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
+            @params = nil
+            @index = []
+          end
         end
       end
-      start_pos = fh.pos
+      start_pos_in_case = fh.pos
       @params = Ms::Sequest::Params.new.parse_io(fh)
       if @params.nil?
-        fh.pos = start_pos
+        fh.pos = start_pos_in_case
         # seek to the index
         fh.scanf "\000\000\000\000"  
       else # we have a params file
@@ -207,11 +234,11 @@ END
         fh.read(12)  ## gap between last params entry and index 
       end
       @index = read_scan_index(fh,@header.num_dta_files)
+      #p @index
     end
 
 
     ### UPDATE SOME THINGS:
-    @base_name = @header.raw_filename.scan(/[\\\/]([^\\\/]+)\.RAW$/).first.first
     # give each hit a base_name, first_scan, last_scan
     @index.each_with_index do |ind,i|
       mass_measured = @dta_files[i][0]
@@ -254,24 +281,19 @@ END
 
   # returns an array of dta_files
   def read_dta_files(fh, num_files, unpack_35)
-    measured_mhs = Array.new(num_files) ## A parallel array to capture the actual mh
     dta_files = Array.new(num_files)
     start = dta_start_byte
-    unless fh.pos == start
-      fh.pos = start
-    end
+    fh.pos = start
 
     header.num_dta_files.times do |i|
-      dta_file = Ms::Sequest::Srf::DTA.new.from_io(fh, unpack_35) 
-      measured_mhs[i] = dta_file[0]
-      dta_files[i] = dta_file
+      dta_files[i] = Ms::Sequest::Srf::DTA.new.from_io(fh, unpack_35) 
     end
-    [dta_files, measured_mhs]
+    dta_files
   end
 
   # filehandle (fh) must be at the start of the outfiles.  'read_dta_files'
   # will put the fh there.
-  def read_out_files(fh,number_files, measured_mhs, unpack_35, dup_refs_gt_0)
+  def read_out_files(fh,number_files, unpack_35, dup_refs_gt_0)
     out_files = Array.new(number_files)
     header.num_dta_files.times do |i|
       out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35, dup_refs_gt_0)
@@ -322,6 +344,14 @@ class Ms::Sequest::Srf::Header
   attr_accessor :params_filename
   attr_accessor :sequest_log_filename
 
+
+  # true if this is a combined file, false if represents a single file
+  # this is set by examining the DTAGen object for signs of a single file
+  attr_reader :combined
+
+  __chars_re = Regexp.escape( "\r\0" )
+  NEWLINE_OR_NULL_RE = /[#{__chars_re}]/o
+
   def num_dta_files
     @dta_gen.num_dta_files
   end
@@ -331,6 +361,11 @@ class Ms::Sequest::Srf::Header
     st = fh.read(4) 
     @version = '3.' + st.unpack('I').first.to_s
     @dta_gen = Ms::Sequest::Srf::DTAGen.new.from_io(fh)
+    # if the start_mass end_mass start_scan and end_scan are all zero, its a
+    # combined srf file:
+    @combined = [0.0, 0.0, 0, 0].zip(%w(start_mass end_mass start_scan end_scan)).all? do |one,two|
+      one == @dta_gen.send(two.to_sym)
+    end
 
     ## get the rest of the info
     byte_length = Byte_length.dup
@@ -338,19 +373,23 @@ class Ms::Sequest::Srf::Header
 
     fh.pos = Start_byte[:enzyme]
     [:enzyme, :ion_series, :model, :modifications, :raw_filename, :db_filename, :dta_log_filename, :params_filename, :sequest_log_filename].each do |param|
-      send("#{param}=".to_sym, get_null_padded_string(fh, byte_length[param]) )
+      send("#{param}=".to_sym, get_null_padded_string(fh, byte_length[param], @combined))
     end
     self
   end
 
   private
-  def get_null_padded_string(fh,bytes)
+  def get_null_padded_string(fh, bytes, combined=false)
     st = fh.read(bytes)
     # for empty declarations
     if st[0] == 0x000000
       return ''
     end
-    st.rstrip!
+    if combined
+      st = st[ 0, st.index(NEWLINE_OR_NULL_RE) ]
+    else
+      st.rstrip!
+    end
     st
   end
 
@@ -429,7 +468,6 @@ class Ms::Sequest::Srf::DTA
     st = fh.read(@read_header)
     # get the bulk of the data in single unpack
     self[0,7] = st.unpack(@unpack)
-    p self
 
     # Scan numbers are given at the end in an index!
     st2 = fh.read(@read_spacer)
@@ -508,6 +546,7 @@ class Ms::Sequest::Srf::Out
       Ms::Sequest::Srf::Out::Pep.set_deltacn_from_deltacn_orig(ar)
     end
     self[6] = ar
+    self[4].chomp!
     self
   end
 
