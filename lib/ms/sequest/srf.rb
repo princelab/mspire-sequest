@@ -2,6 +2,7 @@
 # standard lib
 require 'set'
 require 'fileutils'
+require 'scanf'
 
 # other gems
 require 'arrayclass'
@@ -228,7 +229,11 @@ END
       if @params.nil?
         fh.pos = start_pos_in_case
         # seek to the index
-        fh.scanf "\000\000\000\000"  
+        fh.scanf "\000\000\000\000" do |m|
+          puts "MATCHING NULLS: "
+          p m
+        end
+        warn "no params file, no index, corrupt file"
       else # we have a params file
         # This is very sensitive to the grab_params method in sequest params
         fh.read(12)  ## gap between last params entry and index 

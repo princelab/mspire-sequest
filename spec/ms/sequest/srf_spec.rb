@@ -134,25 +134,25 @@ class SRFReadingWithDuplicateRefs331 < MiniTest::Spec
   
 end
 
-class SRFReadingACorruptedFile < MiniTest::Spec
+#class SRFReadingACorruptedFile < MiniTest::Spec
 
-  it 'reads a file from an aborted run w/o failing, but gives warning msg' do
-    srf_file = TESTFILES + '/corrupted_900.srf'
-    message = capture_stderr do
-      srf_obj = Ms::Sequest::Srf.new(srf_file) 
-      srf_obj.base_name.must_equal '900'
-      srf_obj.params.must_equal nil
-      header = srf_obj.header
-      header.db_filename.must_equal "C:\\Xcalibur\\database\\sf_hs_44_36f_longesttrpt.fasta.hdr"
-      header.enzyme.must_equal 'Enzyme:Trypsin(KR) (2)'
-      dta_gen = header.dta_gen
-      dta_gen.start_time.must_be_close_to(1.39999997615814, 0.00000000001)
-      srf_obj.dta_files.must_equal []
-      srf_obj.out_files.must_equal []
-    end
-    message.must_match(/no SEQUEST/i)
-  end
-end
+#  it 'reads a file from an aborted run w/o failing, but gives warning msg' do
+#    srf_file = TESTFILES + '/corrupted_900.srf'
+#    message = capture_stderr do
+#      srf_obj = Ms::Sequest::Srf.new(srf_file) 
+#      srf_obj.base_name.must_equal '900'
+#      srf_obj.params.must_equal nil
+#      header = srf_obj.header
+#      header.db_filename.must_equal "C:\\Xcalibur\\database\\sf_hs_44_36f_longesttrpt.fasta.hdr"
+#      header.enzyme.must_equal 'Enzyme:Trypsin(KR) (2)'
+#      dta_gen = header.dta_gen
+#      dta_gen.start_time.must_be_close_to(1.39999997615814, 0.00000000001)
+#      srf_obj.dta_files.must_equal []
+#      srf_obj.out_files.must_equal []
+#    end
+#    message.must_match(/no SEQUEST/i)
+#  end
+#end
 
 #class SRFGroupCreatingAnSrg < MiniTest::Spec
   #it 'creates one given some non-existing, relative filenames' do 
