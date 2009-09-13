@@ -21,6 +21,10 @@ module Ms ; end
 module Ms::Sequest ; end
 
 class Ms::Sequest::Srf
+
+  class NoSequestParamsError < ArgumentError
+  end
+
   include Ms::Id::Search
 
   # inherits peps and prots from Search
@@ -88,6 +92,9 @@ class Ms::Sequest::Srf
   #     :read_pephits => true | false (default true)
   #     # will attempt to read peptide hit information (equivalent to .out
   #     # files), otherwise, just reads the dta information.
+  #
+  #     :params => <path/to/sequest.params> Some srf files do not include
+  #     their sequest params file - include it here if necessary.
   def initialize(filename=nil, opts={})
     @peps = []
 
@@ -165,7 +172,14 @@ class Ms::Sequest::Srf
   # opts are the same as for 'new'
   def from_file(filename, opts)
     opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true, :read_pephits => true}.merge(opts)
-    params = Ms::Sequest::Srf.get_sequest_params(filename)
+
+    params = 
+      if opts[:params]
+        Ms::Sequest::Params.new(opts[:params])
+      else
+        Ms::Sequest::Srf.get_sequest_params(filename)
+      end
+
     dup_references = 0
     dup_refs_gt_0 = false
     if params
@@ -186,12 +200,10 @@ END
       else
         dup_refs_gt_0 = true
       end
-    else
-      warn "no params file found in srf, could be combined file or truncated/corrupt file!"
     end
 
     File.open(filename, 'rb') do |fh|
-      @header = Ms::Sequest::Srf::Header.new.from_io(fh)      
+      @header = Ms::Sequest::Srf::Header.new.from_io(fh)
       @version = @header.version
 
       unpack_35 = case @version
@@ -216,6 +228,8 @@ END
         @base_name = @header.raw_filename.scan(/[\\\/]([^\\\/]+)\.RAW$/).first.first
         @dta_files = read_dta_files(fh, @header.num_dta_files, unpack_35)
         if opts[:read_pephits]
+          # need the params file to know if the duplicate_references is set > 0
+          raise NoSequestParamsError, "no sequest params info in srf file!\npass in path to sequest.params file" if @params.nil?
           @out_files = read_out_files(fh,@header.num_dta_files, unpack_35, dup_refs_gt_0)
           if fh.eof?
             #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
@@ -239,7 +253,6 @@ END
         fh.read(12)  ## gap between last params entry and index 
       end
       @index = read_scan_index(fh,@header.num_dta_files)
-      #p @index
     end
 
 
@@ -761,6 +774,7 @@ class Ms::Sequest::SrfGroup
     srg_filename
   end
 end
+
 
 
 

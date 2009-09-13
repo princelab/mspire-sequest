@@ -118,7 +118,7 @@ module Ms
             when 'mgf'
               base << '.' << format
             end
-          srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => false )
+          srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => false, :read_pephits => false )
           # options just speed up reading since we don't need .out info anyway
           case format
           when 'mgf'
