@@ -173,7 +173,7 @@ class Ms::Sequest::Srf
   def from_file(filename, opts)
     opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true, :read_pephits => true}.merge(opts)
 
-    params = 
+    @params = 
       if opts[:params]
         Ms::Sequest::Params.new(opts[:params])
       else
@@ -182,8 +182,8 @@ class Ms::Sequest::Srf
 
     dup_references = 0
     dup_refs_gt_0 = false
-    if params
-      dup_references = params.print_duplicate_references.to_i
+    if @params
+      dup_references = @params.print_duplicate_references.to_i
       if dup_references == 0
         warn <<END
 *****************************************************************************
