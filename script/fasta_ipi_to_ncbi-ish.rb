@@ -1,5 +1,14 @@
 #!/usr/bin/ruby
 
+if ARGV.size == 0
+  puts "usage: #{File.basename(__FILE__)} <file>.fasta ..."
+  puts "outputs: <file>_NCBI.fasta ..."
+  puts ""
+  puts "(Bioworks 3.3.1 [maybe others] does not seem to read an IPI"
+  puts "formatted fasta database header lines.  This will change an" 
+  puts "IPI format to an NCBI style format that Bioworks can read."
+  exit
+end
 
 ARGV.each do |file|
   base = file.chomp(File.extname(file))
