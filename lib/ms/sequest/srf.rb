@@ -256,26 +256,29 @@ END
 
     ### UPDATE SOME THINGS:
     # give each hit a base_name, first_scan, last_scan
-    @index.each_with_index do |ind,i|
-      mass_measured = @dta_files[i][0]
-      @out_files[i][0,3] = *ind
-      pep_hits = @out_files[i][6]
-      @peps.push( *pep_hits )
-      pep_hits.each do |pep_hit|
-        pep_hit[14,4] = @base_name, *ind
-        # add the deltamass
-        pep_hit[11] = pep_hit[0] - mass_measured  # real - measured (deltamass)
-        pep_hit[12] = 1.0e6 * pep_hit[11].abs / mass_measured ## ppm
-        pep_hit[18] = self  ## link with the srf object
+    if opts[:read_pephits] && !@header.combined
+      @index.each_with_index do |ind,i|
+        mass_measured = @dta_files[i][0]
+        @out_files[i][0,3] = *ind
+        pep_hits = @out_files[i][6]
+        @peps.push( *pep_hits )
+        pep_hits.each do |pep_hit|
+          pep_hit[14,4] = @base_name, *ind
+          # add the deltamass
+          pep_hit[11] = pep_hit[0] - mass_measured  # real - measured (deltamass)
+          pep_hit[12] = 1.0e6 * pep_hit[11].abs / mass_measured ## ppm
+          pep_hit[18] = self  ## link with the srf object
+        end
       end
-    end
 
-    filter_by_precursor_mass_tolerance! if params
+      filter_by_precursor_mass_tolerance! if params
 
-    if opts[:link_protein_hits]
-      (@peps, @prots) = merge!([peps]) do |_prot, _peps|
-        prot = Ms::Sequest::Srf::Out::Prot.new(_prot.reference, _peps)
+      if opts[:link_protein_hits]
+        (@peps, @prots) = merge!([peps]) do |_prot, _peps|
+          prot = Ms::Sequest::Srf::Out::Prot.new(_prot.reference, _peps)
+        end
       end
+
     end
 
     self

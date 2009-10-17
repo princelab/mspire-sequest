@@ -11,8 +11,7 @@ opt = {
 opts = OptionParser.new do |op|
   op.banner = "usage: #{File.basename(__FILE__)} <file>.srf"
   op.separator "outputs: <file>.mgf"
-  op.on("-f", "--format <mgf|dat>", "the output format (default: #{opt[:format]})") {|v| do opt[:format] = v }
-  end
+  op.on("-f", "--format <mgf|dat>", "the output format (default: #{opt[:format]})") {|v| opt[:format] = v }
 end
 
 if ARGV.size == 0
@@ -20,7 +19,7 @@ if ARGV.size == 0
   exit
 end
 
-(format) = opt.values_at(:format)
+format = opt[:format]
 
 ARGV.each do |srf_file|
   base = srf_file.sub(/\.srf$/i, '')
