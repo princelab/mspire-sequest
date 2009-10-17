@@ -101,7 +101,7 @@ module Ms
         end
       end
 
-      # Ms::Sequest::Srf::SrfToSearch::task converts to MS formats for DB
+     # Ms::Sequest::Srf::SrfToSearch::task converts to MS formats for DB
       # searching
       #
       # outputs the appropriate file or directory structure for <file>.srf:

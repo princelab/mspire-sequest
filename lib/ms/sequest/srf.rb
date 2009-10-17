@@ -13,9 +13,6 @@ require 'ms/id/protein'
 require 'ms/id/search'
 require 'ms/sequest/params'
 
-# for conversions
-require 'ms/sequest/srf/search'
-require 'ms/sequest/srf/sqt'
 
 module Ms ; end
 module Ms::Sequest ; end
@@ -75,6 +72,7 @@ class Ms::Sequest::Srf
     end
   end
 
+  
   # opts:
   #     :filter_by_precursor_mass_tolerance => true | false (default true)
   #     # this will filter by the sequest params prec tolerance as is
