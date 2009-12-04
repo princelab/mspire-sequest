@@ -1,3 +1,7 @@
+== 0.0.10 / 2009-12-03
+
+* turned off warning if print_duplicates == 0
+
 == 0.0.9 / 2009-09-08
 
 * added capability to read srf files created by reading in .out/.dta folders (combined).

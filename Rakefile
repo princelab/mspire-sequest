@@ -11,11 +11,15 @@ DIST_FILES =  LIB_FILES + EXTRA_RDOC_FILES
 
 LEAVE_OUT = %w(lib/ms/sequest/bioworks.rb lib/ms/sequest/pepxml.rb)
 
-require "lib/ms/sequest"  # to get the Version #
+
+def get_version
+  require "lib/ms/sequest"  # to get the Version #
+  Ms::Sequest::VERSION
+end
 
 gemspec = Gem::Specification.new do |s|
   s.name = NAME
-  s.version = Ms::Sequest::VERSION
+  s.version = get_version
   s.authors = ["John Prince"]
   s.email = "jtprince@gmail.com"
   s.homepage = "http://mspire.rubyforge.org/projects/#{NAME}/"
@@ -23,7 +27,6 @@ gemspec = Gem::Specification.new do |s|
   s.summary = "An mspire library supporting SEQUEST, Bioworks, SQT, etc"
   s.description = "reads .SRF, .SQT and supports conversions"
   s.require_path = "lib"
-  s.rubyforge_project = "mspire"
   s.has_rdoc = true
   s.executables = Dir["bin/*"].map {|v| v.sub(/^bin\//,'') }
   s.add_dependency("arrayclass", ">= 0.1.0")

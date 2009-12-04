@@ -183,18 +183,18 @@ class Ms::Sequest::Srf
     if @params
       dup_references = @params.print_duplicate_references.to_i
       if dup_references == 0
-        warn <<END
-*****************************************************************************
-WARNING: This srf file lists only 1 protein per peptide! (based on the
-print_duplicate_references parameter in the sequest.params file used in its
-creation)  So, downstream output will likewise only contain a single protein
-for each peptide hit.  In many instances this is OK since downstream programs
-will recalculate protein-to-peptide linkages from the database file anyway.
-For complete protein lists per peptide hit, .srf files must be created with
-print_duplicate_references > 0. HINT: to capture all duplicate references, 
-set the sequest parameter 'print_duplicate_references' to 100 or greater.
-*****************************************************************************
-END
+        # warn %Q{
+#*****************************************************************************
+#WARNING: This srf file lists only 1 protein per peptide! (based on the
+#print_duplicate_references parameter in the sequest.params file used in its
+#creation)  So, downstream output will likewise only contain a single protein
+#for each peptide hit.  In many instances this is OK since downstream programs
+#will recalculate protein-to-peptide linkages from the database file anyway.
+#For complete protein lists per peptide hit, .srf files must be created with
+#print_duplicate_references > 0. HINT: to capture all duplicate references, 
+#set the sequest parameter 'print_duplicate_references' to 100 or greater.
+#*****************************************************************************
+#        }
       else
         dup_refs_gt_0 = true
       end
