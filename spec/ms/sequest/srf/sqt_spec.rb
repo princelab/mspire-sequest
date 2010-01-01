@@ -1,6 +1,7 @@
 require File.expand_path( File.dirname(__FILE__) + '/../../../tap_spec_helper' )
 
 require 'ms/sequest/srf'
+require 'ms/sequest/srf/sqt'
 
 SpecHelperHeaderHash = {
   'SQTGenerator' => 'mspire: ms-sequest',

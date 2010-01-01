@@ -263,11 +263,11 @@ class Ms::Sequest::Srf
         pep_hits = @out_files[i][6]
         @peps.push( *pep_hits )
         pep_hits.each do |pep_hit|
-          pep_hit[14,4] = @base_name, *ind
+          pep_hit[15,4] = @base_name, *ind
           # add the deltamass
-          pep_hit[11] = pep_hit[0] - mass_measured  # real - measured (deltamass)
-          pep_hit[12] = 1.0e6 * pep_hit[11].abs / mass_measured ## ppm
-          pep_hit[18] = self  ## link with the srf object
+          pep_hit[12] = pep_hit[0] - mass_measured  # real - measured (deltamass)
+          pep_hit[13] = 1.0e6 * pep_hit[12].abs / mass_measured ## ppm
+          pep_hit[19] = self  ## link with the srf object
         end
       end
 
@@ -594,7 +594,7 @@ end
 # srf = the srf object this scan came from
 
 
-Ms::Sequest::Srf::Out::Pep = Arrayclass.new( %w(mh deltacn_orig sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated) )
+Ms::Sequest::Srf::Out::Pep = Arrayclass.new( %w(mh deltacn_orig sf sp xcorr id num_other_loci rsp ions_matched ions_total sequence prots deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated) )
 # 0=mh 1=deltacn_orig 2=sp 3=xcorr 4=id 5=num_other_loci 6=rsp 7=ions_matched 8=ions_total 9=sequence 10=prots 11=deltamass 12=ppm 13=aaseq 14=base_name 15=first_scan 16=last_scan 17=charge 18=srf 19=deltacn 20=deltacn_orig_updated
 
 class Ms::Sequest::Srf::Out::Pep
@@ -612,16 +612,16 @@ class Ms::Sequest::Srf::Out::Pep
   # recalculates deltacn from xcorrs and sets deltacn_orig_updated and deltacn
   def self.update_deltacns_from_xcorr(ar)
     if ar.size > 0
-      top_score = ar.first[3]
+      top_score = ar.first[4]
       other_scores = (1...(ar.size)).to_a.map do |i|
-        1.0 - (ar[i][3]/top_score)
+        1.0 - (ar[i][4]/top_score)
       end
-      ar.first[20] = 0.0
+      ar.first[21] = 0.0
       (0...(ar.size-1)).each do |i|
-        ar[i][19] = other_scores[i]    # deltacn
-        ar[i+1][20] = other_scores[i]  # deltacn_orig_updated
+        ar[i][20] = other_scores[i]    # deltacn
+        ar[i+1][21] = other_scores[i]  # deltacn_orig_updated
       end
-      ar.last[19] = 1.1
+      ar.last[20] = 1.1
     end
   end
 
@@ -631,22 +631,18 @@ class Ms::Sequest::Srf::Out::Pep
       pep = pep_hits[fh.read(8).unpack('x4I').first - 1]
 
       ref = fh.read(80).unpack('A*').first
-      pep[10] << Ms::Sequest::Srf::Out::Prot.new(ref[0,38])
+      pep[11] << Ms::Sequest::Srf::Out::Prot.new(ref[0,38])
     end
     #  fh.read(6) if unpack_35
   end
 
-  # x2=???
-  #Unpack_35 = '@64Ex8ex12eeIx22vx2vvx8Z*@246Z*'
-  ### NOTE: 
-  # I need to verify that this is correct (I mean the 'I' after x18)
-  Unpack_35 = '@64Ex8ex12eeIx18Ivx2vvx8Z*@246Z*'
+  Unpack_35 = '@64Ex8ex8eeeIx18Ivx2vvx8Z*@246Z*'
   # translation: @64=(64 bytes in to the record), E=mH, x8=8unknown bytes, e=deltacn,
-  # x12=12unknown bytes, e=sp, e=xcorr, I=ID#, x18=18 unknown bytes, v=rsp,
+  # x8=8unknown bytes, e=sf, e=sp, e=xcorr, I=ID#, x18=18 unknown bytes, v=rsp,
   # v=ions_matched, v=ions_total, x8=8unknown bytes, Z*=sequence, 240Z*=at
   # byte 240 grab the string (which is proteins).
   #Unpack_32 = '@64Ex8ex12eeIx18vvvx8Z*@240Z*'
-  Unpack_32 = '@64Ex8ex12eeIx14Ivvvx8Z*@240Z*'
+  Unpack_32 = '@64Ex8ex8eeeIx14Ivvvx8Z*@240Z*'
   Unpack_four_null_bytes = 'a*'
   Unpack_Zstar = 'Z*'
   Read_35 = 426
@@ -659,7 +655,7 @@ class Ms::Sequest::Srf::Out::Pep
 
   undef_method :inspect
   def inspect
-    st = %w(aaseq sequence mh deltacn_orig sp xcorr id rsp ions_matched ions_total prots deltamass ppm base_name first_scan last_scan charge deltacn).map do |v| 
+    st = %w(aaseq sequence mh deltacn_orig sf sp xcorr id rsp ions_matched ions_total prots deltamass ppm base_name first_scan last_scan charge deltacn).map do |v| 
       if v == 'prots'
         "#{v}(#)=#{send(v.to_sym).size}"
       elsif v.is_a? Array
@@ -687,16 +683,17 @@ class Ms::Sequest::Srf::Out::Pep
     ## get the first part of the info
     st = fh.read(( unpack_35 ? Read_35 : Read_32) ) ## read all the hit data
 
-    self[0,10] = st.unpack(unpack)
+    self[0,11] = st.unpack(unpack)
+
 
     # set deltacn_orig_updated 
-    self[20] = self[1]
+    self[21] = self[1]
 
     # we are slicing the reference to 38 chars to be the same length as
     # duplicate references
-    self[10] = [Ms::Sequest::Srf::Out::Prot.new(self[10][0,38])]
+    self[11] = [Ms::Sequest::Srf::Out::Prot.new(self[11][0,38])]
 
-    self[13] = Ms::Id::Peptide.sequence_to_aaseq(self[9])
+    self[14] = Ms::Id::Peptide.sequence_to_aaseq(self[10])
 
     fh.read(6) if unpack_35
 

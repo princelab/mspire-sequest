@@ -2,6 +2,7 @@ require File.expand_path( File.dirname(__FILE__) + '/../../../tap_spec_helper' )
 
 require 'fileutils'
 require 'ms/sequest/srf'
+require 'ms/sequest/srf/search'
 
 # 'converting a large srf to sqt'
 class SRF_TO_DTA < MiniTest::Spec
