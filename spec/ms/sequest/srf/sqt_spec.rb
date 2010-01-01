@@ -1,4 +1,4 @@
-require File.expand_path( File.dirname(__FILE__) + '/../../../tap_spec_helper' )
+require File.expand_path( File.dirname(__FILE__) + '/../../../spec_helper' )
 
 require 'ms/sequest/srf'
 require 'ms/sequest/srf/sqt'
@@ -39,8 +39,13 @@ M	10	17	1298.5350544522	0.235343858599663	0.823222815990448	151.717300415039	12	
 L	gi|90111124|ref|NP_414904.2|
 END
 
-# 'converting a large srf to sqt'
-class SRF_TO_SQT < MiniTest::Spec
+describe 'converting a large srf to sqt' do
+
+  @file = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf'
+  @output = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.sqt.tmp'
+  @srf = Ms::Sequest::Srf.new(@file)
+  @original_db_filename = @srf.header.db_filename
+
   def del(file)
     if File.exist?(file)
       File.unlink(file)
@@ -77,28 +82,21 @@ class SRF_TO_SQT < MiniTest::Spec
     end
   end
 
-  def initialize(*args)
-    super(*args)
-    @file = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf'
-    @output = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.sqt.tmp'
-    @srf = Ms::Sequest::Srf.new(@file)
-    @original_db_filename = @srf.header.db_filename
-  end
-
- it 'converts without bothering with the database' do
+  it 'converts without bothering with the database' do
     @srf.to_sqt(@output)
-    assert File.exist?(@output)
+    ok File.exist?(@output)
     lines = File.readlines(@output)
-    lines.size.must_equal 80910
+    lines.size.is 80910
     header_lines = lines.grep(/^H/)
-    assert(header_lines.size > 10)
-    assert header_hash_match(header_lines, SpecHelperHeaderHash)
+    ok(header_lines.size > 10)
+    ok header_hash_match(header_lines, SpecHelperHeaderHash)
     other_lines = lines.grep(/^[^H]/)
-    other_lines[0,4].join('').must_equal SpecHelperOtherLines
-    other_lines[-3,3].join('').must_equal SpecHelperOtherLinesEnd
+    other_lines[0,4].join('').is SpecHelperOtherLines
+    other_lines[-3,3].join('').is SpecHelperOtherLinesEnd
     del(@output)
   end
- it 'warns if the db path is incorrect and we want to update db info' do
+
+  it 'warns if the db path is incorrect and we want to update db info' do
     # requires some knowledge of how the database file is extracted
     # internally
     wacky_path = '/not/a/real/path/wacky.fasta'
@@ -108,28 +106,28 @@ class SRF_TO_SQT < MiniTest::Spec
       $stderr = strio
       @srf.to_sqt(@output, :db_info => true)
     end
-    assert my_error_string.include?(wacky_path)
+    ok my_error_string.include?(wacky_path)
     @srf.header.db_filename = @original_db_filename
     $stderr = STDERR
-    assert File.exists?(@output)
-    IO.readlines(@output).size.must_equal 80910
+    ok File.exists?(@output)
+    IO.readlines(@output).size.is 80910
     del(@output)
   end
   it 'can get db info with correct path' do
     @srf.to_sqt(@output, :db_info => true, :new_db_path => Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33')
-    assert File.exist?(@output)
+    ok File.exist?(@output)
     lines = IO.readlines(@output)
     has_md5 = lines.any? do |line|
       line =~ /DBMD5Sum\s+202b1d95e91f2da30191174a7f13a04e/
     end
-    assert has_md5
+    ok has_md5
 
     has_seq_len = lines.any? do |line|
       # frozen
       line =~ /DBSeqLength\s+1342842/
     end
-    assert has_seq_len
-    lines.size.must_equal 80912
+    ok has_seq_len
+    lines.size.is 80912
     del(@output)
   end
   it 'can update the Database' do
@@ -138,7 +136,7 @@ class SRF_TO_SQT < MiniTest::Spec
     updated_db = IO.readlines(@output).any? do |line|
       line =~ regexp
     end
-    assert updated_db
+    ok updated_db
     del(@output)
   end
 end

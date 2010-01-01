@@ -1,6 +1,6 @@
 
 module Ms
   module Sequest
-    VERSION = '0.0.11'
+    VERSION = File.open(File.dirname(__FILE__) + '/../../VERSION') {|io| io.gets.chomp }
   end
 end

@@ -44,7 +44,7 @@ module Ms
       # :zip requires gem rubyzip to be installed and is *very* bloated
       # as it writes out all the files first!
       # :tgz requires gem archive-tar-minitar to be installed
-      def to_dta_files(out_folder=nil, compress=nil)
+      def to_dta(out_folder=nil, compress=nil)
         outdir = 
           if out_folder ; out_folder
           else base_name

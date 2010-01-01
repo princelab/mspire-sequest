@@ -1,12 +1,12 @@
-require File.expand_path( File.dirname(__FILE__) + '/../../tap_spec_helper' )
+require File.expand_path( File.dirname(__FILE__) + '/../../spec_helper' )
 
 require File.dirname(__FILE__) + '/sqt_spec_helper'
 
 require 'ms/sequest/sqt'
 
+describe 'reading a small sqt file' do
 
-class ReadingASmallSqtFile < MiniTest::Spec
-  before(:each) do
+  before do
     file = TESTFILES + '/small.sqt'
     @sqt = Ms::Sequest::Sqt.new(file)
   end
@@ -14,17 +14,17 @@ class ReadingASmallSqtFile < MiniTest::Spec
   it 'can access header entries like a hash' do
     header = @sqt.header
     HeaderHash.each do |k,v|
-      header[k].must_equal v
+      header[k].is v
     end
   end
 
   it 'can access header entries with methods' do
     header = @sqt.header
     # for example:
-    header.database.must_equal HeaderHash['Database']
+    header.database.is HeaderHash['Database']
     # all working:
     HeaderHash.each do |k,v|
-      header.send(Ms::Sequest::Sqt::Header::KeysToAtts[k]).must_equal v
+      header.send(Ms::Sequest::Sqt::Header::KeysToAtts[k]).is v
     end
 
   end
@@ -35,17 +35,17 @@ class ReadingASmallSqtFile < MiniTest::Spec
     [:first, :last, :seventeenth, :first_match_17, :last_match_17, :last_match_17_last_loci].each do |key|
       TestSpectra[key].each do |k,v|
         if v.is_a? Float
-          reply[key].send(k).must_be_close_to(v, 0.0000000001)
+          reply[key].send(k).should.be.close(v, 0.0000000001)
         else
           next if key == :last_match_17_last_loci
           #p k
           #p v
-          reply[key].send(k).must_equal v
+          reply[key].send(k).is v
         end
       end
     end
-    @sqt.spectra[16].matches.first.loci.size.must_equal 1
-    @sqt.spectra[16].matches.last.loci.size.must_equal 1
+    @sqt.spectra[16].matches.first.loci.size.is 1
+    @sqt.spectra[16].matches.last.loci.size.is 1
   end
 
 end
@@ -59,20 +59,20 @@ end
 
   #it 'has peptide hits' do
     #peps = @sqg.peps
-    #peps.size.must_equal 86
+    #peps.size.is 86
     ## first hit in 020
-    #peps.first.sequence.must_equal 'R.Y#RLGGS#T#K.K'
-    #peps.first.base_name.must_equal 'small'
+    #peps.first.sequence.is 'R.Y#RLGGS#T#K.K'
+    #peps.first.base_name.is 'small'
     ## last hit in 040
-    #peps.last.sequence.must_equal 'K.T#IS#S#QK.K'
-    #peps.last.base_name.must_equal 'small2'
+    #peps.last.sequence.is 'K.T#IS#S#QK.K'
+    #peps.last.base_name.is 'small2'
   #end
 
   #it 'has prots' do
     ### FROZEN:
-    #@sqg.prots.size.must_equal 72
+    #@sqg.prots.size.is 72
     #sorted = @sqg.prots.sort_by {|v| v.reference }
-    #sorted.first.reference.must_equal 'gi|16127996|ref|NP_414543.1|'
-    #sorted.first.peps.size.must_equal 33
+    #sorted.first.reference.is 'gi|16127996|ref|NP_414543.1|'
+    #sorted.first.peps.size.is 33
   #end
 #end

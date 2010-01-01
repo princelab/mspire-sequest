@@ -27,7 +27,7 @@ module Ms
           when 'mgf'
             srf.to_mgf(newfile)
           when 'dta'
-            srf.to_dta_files(newfile)
+            srf.to_dta(newfile)
           end
         end
       end

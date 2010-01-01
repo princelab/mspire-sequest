@@ -17,6 +17,7 @@ require 'ms/sequest/params'
 module Ms ; end
 module Ms::Sequest ; end
 
+
 class Ms::Sequest::Srf
 
   class NoSequestParamsError < ArgumentError
@@ -350,8 +351,8 @@ class Ms::Sequest::Srf::Header
     :modifications => 456,
   }
 
-  # a Ms::Sequest::Srf::DTAGen object
   attr_accessor :version
+  # a Ms::Sequest::Srf::DTAGen object
   attr_accessor :dta_gen
   attr_accessor :enzyme
   attr_accessor :ion_series
@@ -732,8 +733,8 @@ end
 class Ms::Sequest::SrfGroup 
   include Ms::Id::SearchGroup
 
-  # inherets an array of Ms::Sequest::Srf::Out::Pep objects
-  # inherets an array of Ms::Sequest::Srf::Out::Prot objects
+  # inherits an array of Ms::Sequest::Srf::Out::Pep objects
+  # inherits an array of Ms::Sequest::Srf::Out::Prot objects
 
   # see Ms::Id::Search for acceptable arguments
   # (filename, filenames, array of objects)

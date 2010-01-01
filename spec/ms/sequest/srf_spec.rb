@@ -1,4 +1,4 @@
-require File.expand_path( File.dirname(__FILE__) + '/../../tap_spec_helper' )
+require File.expand_path( File.dirname(__FILE__) + '/../../spec_helper' )
 require File.expand_path( File.dirname(__FILE__) + '/srf_spec_helper' )
 
 require 'ms/sequest/srf'
@@ -34,23 +34,17 @@ class Hash
 end
 
 
-module SRFReaderBehavior
-  extend Shareable
-
-  def initialize(*args)
-    super(*args)
-    @srf_obj = Ms::Sequest::Srf.new(@file)
-  end
+shared 'an srf reader' do
 
   it 'retrieves correct header info' do
-    assert @header.object_match(@srf_obj.header)
-    assert @dta_gen.object_match(@srf_obj.header.dta_gen)
+    ok @header.object_match(@srf_obj.header)
+    ok @dta_gen.object_match(@srf_obj.header.dta_gen)
   end
 
   # a few more dta params could be added in here:
   it 'retrieves correct dta files' do
-    assert @dta_files_first.object_match(@srf_obj.dta_files.first)
-    assert @dta_files_last.object_match(@srf_obj.dta_files.last)
+    ok @dta_files_first.object_match(@srf_obj.dta_files.first)
+    ok @dta_files_last.object_match(@srf_obj.dta_files.last)
   end
 
   # given an array of out_file objects, returns the first set of hits
@@ -64,21 +58,23 @@ module SRFReaderBehavior
   end
 
   it 'retrieves correct out files' do
-    assert @out_files_first.object_match(@srf_obj.out_files.first)
-    assert @out_files_last.object_match(@srf_obj.out_files.last)
+    ok @out_files_first.object_match(@srf_obj.out_files.first)
+    ok @out_files_last.object_match(@srf_obj.out_files.last)
     # first available peptide hit
-    assert @out_files_first_pep.object_match(get_first_peps(@srf_obj.out_files).first)
+    ok @out_files_first_pep.object_match(get_first_peps(@srf_obj.out_files).first)
     # last available peptide hit
-    assert @out_files_last_pep.object_match(get_first_peps(@srf_obj.out_files.reverse).last)
+    ok @out_files_last_pep.object_match(get_first_peps(@srf_obj.out_files.reverse).last)
   end
 
   it 'retrieves correct params' do
-    assert @params.object_match(@srf_obj.params)
+    ok @params.object_match(@srf_obj.params)
   end
 
   # TODO:
   #it_should 'retrieve probabilities if available'
 end
+
+# TODO:, we should try to get some tests with sf values present!
 
 
 Expected_hash_keys = %w(header dta_gen dta_files_first dta_files_last out_files_first out_files_last out_files_first_pep out_files_last_pep params)
@@ -92,46 +88,37 @@ To_run = {
 # I had these nicely combined under RSpec, but this is not as obvious a task
 # under minispec given the corrupted include behavior...
 
-class SRFReadingWithDuplicateRefs32 < MiniTest::Spec
-  include SRFReaderBehavior
+describe 'reading srf with duplicate refs v3.2' do
 
-  def initialize(*args)
-    info = To_run['3.2']
-    @file = Ms::TESTDATA + '/sequest' + info[:file]
-    Expected_hash_keys.each do |c|
-      instance_variable_set("@#{c}", info[:hash][c.to_sym])
-    end
-    super(*args)
+  info = To_run['3.2']
+  @file = Ms::TESTDATA + '/sequest' + info[:file]
+  @srf_obj = Ms::Sequest::Srf.new(@file)
+  Expected_hash_keys.each do |c|
+    instance_variable_set("@#{c}", info[:hash][c.to_sym])
   end
-  
+
+  behaves_like 'an srf reader'
 end
 
-class SRFReadingWithDuplicateRefs33 < MiniTest::Spec
-  include SRFReaderBehavior
-
-  def initialize(*args)
-    info = To_run['3.3']
-    @file = Ms::TESTDATA + '/sequest' + info[:file]
-    Expected_hash_keys.each do |c|
-      instance_variable_set("@#{c}", info[:hash][c.to_sym])
-    end
-    super(*args)
+describe 'reading srf with duplicate refs v3.3' do
+  info = To_run['3.3']
+  @file = Ms::TESTDATA + '/sequest' + info[:file]
+  @srf_obj = Ms::Sequest::Srf.new(@file)
+  Expected_hash_keys.each do |c|
+    instance_variable_set("@#{c}", info[:hash][c.to_sym])
   end
-  
+
+  behaves_like 'an srf reader'
 end
 
-class SRFReadingWithDuplicateRefs331 < MiniTest::Spec
-  include SRFReaderBehavior
-
-  def initialize(*args)
-    info = To_run['3.3.1']
-    @file = Ms::TESTDATA + '/sequest' + info[:file]
-    Expected_hash_keys.each do |c|
-      instance_variable_set("@#{c}", info[:hash][c.to_sym])
-    end
-    super(*args)
+describe 'reading srf with duplicate refs v3.3.1' do
+  info = To_run['3.3.1']
+  @file = Ms::TESTDATA + '/sequest' + info[:file]
+  @srf_obj = Ms::Sequest::Srf.new(@file)
+  Expected_hash_keys.each do |c|
+    instance_variable_set("@#{c}", info[:hash][c.to_sym])
   end
-  
+  behaves_like 'an srf reader'
 end
 
 #class SRFReadingACorruptedFile < MiniTest::Spec
@@ -140,15 +127,15 @@ end
 #    srf_file = TESTFILES + '/corrupted_900.srf'
 #    message = capture_stderr do
 #      srf_obj = Ms::Sequest::Srf.new(srf_file) 
-#      srf_obj.base_name.must_equal '900'
-#      srf_obj.params.must_equal nil
+#      srf_obj.base_name.is '900'
+#      srf_obj.params.is nil
 #      header = srf_obj.header
-#      header.db_filename.must_equal "C:\\Xcalibur\\database\\sf_hs_44_36f_longesttrpt.fasta.hdr"
-#      header.enzyme.must_equal 'Enzyme:Trypsin(KR) (2)'
+#      header.db_filename.is "C:\\Xcalibur\\database\\sf_hs_44_36f_longesttrpt.fasta.hdr"
+#      header.enzyme.is 'Enzyme:Trypsin(KR) (2)'
 #      dta_gen = header.dta_gen
 #      dta_gen.start_time.must_be_close_to(1.39999997615814, 0.00000000001)
-#      srf_obj.dta_files.must_equal []
-#      srf_obj.out_files.must_equal []
+#      srf_obj.dta_files.is []
+#      srf_obj.out_files.is []
 #    end
 #    message.must_match(/no SEQUEST/i)
 #  end
@@ -163,7 +150,7 @@ end
     #srg_file = TESTFILES + '/tmp_srg_file.srg'
     #begin
       #@srg.to_srg(srg_file)
-      #assert File.exist?(srg_file)
+      #ok File.exist?(srg_file)
     #ensure
       #File.unlink(srg_file)
     #end
@@ -180,13 +167,13 @@ end
     #end
 
     #it 'creates dta files' do
-      #@srf.to_dta_files
-      #assert File.exist?('020')
-      #assert File.directory?('020')
-      #assert File.exist?('020/020.3366.3366.2.dta')
+      #@srf.to_dta
+      #ok File.exist?('020')
+      #ok File.directory?('020')
+      #ok File.exist?('020/020.3366.3366.2.dta')
       #lines = IO.readlines('020/020.3366.3366.2.dta', "\r\n")
-      #lines.first.must_equal "1113.106493 2\r\n"
-      #lines[1].must_equal "164.5659 4817\r\n"
+      #lines.first.is "1113.106493 2\r\n"
+      #lines[1].is "164.5659 4817\r\n"
       
       #FileUtils.rm_rf '020'
     #end

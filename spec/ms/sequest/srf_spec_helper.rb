@@ -79,6 +79,7 @@ module SRFHelper
       :mh=>1121.9390244522,
       :deltacn_orig=>0.0,
       :sp=>29.8529319763184,
+      :sf=>0.0,
       :xcorr=>0.123464643955231,
       :id=>2104,
       :rsp=>1,
@@ -102,6 +103,7 @@ module SRFHelper
       :deltacn_orig=>0.835508584976196,
       :deltacn=>1.1,
       :sp=>57.9885787963867,
+      :sf=>0.0,
       :xcorr=>0.109200321137905,
       :id=>1361,
       :rsp=>11,
@@ -139,6 +141,8 @@ module SRFHelper
 
   File_33[:out_files_first_pep][:sp] = 29.8535556793213
   File_33[:out_files_last_pep][:sp] = 57.987476348877
+  File_33[:out_files_first_pep][:sf] = 0.0
+  File_33[:out_files_last_pep][:sf] = 0.0
   File_33[:out_files_last_pep][:rsp] = 10
   File_33[:out_files_last_pep][:deltacn_orig] = 0.835624694824219
 
