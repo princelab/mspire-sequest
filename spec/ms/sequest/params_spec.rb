@@ -5,7 +5,12 @@ require 'ms/sequest/params'
 # returns a hash of all params
 def simple_parse(filename)
   hash = {}
-  IO.read(filename).split(/\r?\n/).select {|v| v =~ /^[a-z]/}.each do |line|
+  data = File.open(filename) do |io| 
+    # this makes it work with ruby 1.9:
+    io.set_encoding("ASCII-8BIT") if io.respond_to?(:set_encoding)
+    io.read 
+  end
+  data.split(/\r?\n/).select {|v| v =~ /^[a-z]/}.each do |line|
     if line =~ /([^\s]+)\s*=\s*([^;]+)\s*;?/
       hash[$1.dup] = $2.rstrip
     end

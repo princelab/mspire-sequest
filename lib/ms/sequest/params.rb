@@ -97,6 +97,10 @@ class Ms::Sequest::Params
   # returns self or nil if no sequest found in the io
   def parse_io(fh)
     # seek to the SEQUEST file
+    if fh.respond_to?(:set_encoding)
+      # this mimics ruby1.8 behavior as we read in the file
+      fh.set_encoding('ASCII-8BIT')
+    end
     loop do
       line = fh.gets
       return nil if line.nil?  # we return nil if we reach then end of the file without seeing sequest params
@@ -234,8 +238,8 @@ class Ms::Sequest::Params
   # based_on may be :precursor or :fragment
   def mass_index(based_on=:precursor)
     reply = case based_on
-            when :precursor : precursor_mass_type
-            when :fragment : fragment_mass_type
+            when :precursor ; precursor_mass_type
+            when :fragment ; fragment_mass_type
             end
     case reply
     when 'average'
@@ -257,8 +261,8 @@ class Ms::Sequest::Params
   def min_number_termini
     if e_info = @opts["enzyme_info"]
       case e_info.split(" ")[1]
-      when "1": return "2"
-      when "2": return "1"
+      when "1" ; return "2"
+      when "2" ; return "1"
       end
     end
     warn "No Enzyme termini info, using min_number_termini = '1'"

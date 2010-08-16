@@ -71,9 +71,9 @@ module Ms
 
         apmu = 
           case params.peptide_mass_units 
-          when '0' : 'amu' 
-          when '1' : 'mmu'
-          when '2' : 'ppm'
+          when '0' ; 'amu' 
+          when '1' ; 'mmu'
+          when '2' ; 'ppm'
           end
 
         hh =  {

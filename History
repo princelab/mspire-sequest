@@ -1,3 +1,8 @@
+== 0.0.13 / 2010-08-16
+
+* compatible with ruby 1.9
+* simplified Rakefile, ditching efforts at gh-pages converter for now
+
 == 0.0.12 / 2010-01-01
 
 * moved over to jeweler and tests to bacon (spec/more)
