@@ -20,7 +20,7 @@ gemspec = Gem::Specification.new do |s|
   s.add_dependency("ms-fasta", ">= 0.4.1")
 
   s.add_development_dependency("ms-testdata", ">= 0.18.0")
-  s.add_development_dependency("spec/more")
+  s.add_development_dependency("spec-more")
 end
 Jeweler::Tasks.new(gemspec)
 
