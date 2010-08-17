@@ -1,8 +1,15 @@
-= {ms-sequest}[http://jtprince.github.com/ms-template/rdoc/]
+= ms-sequest
 
 An {mspire}[http://mspire.rubyforge.org] library supporting SEQUEST, Bioworks, SQT and associated formats.
 
+== {API}[http://yardoc.org/docs/jtprince-ms-sequest]
+
 == Examples
+
+Provides two executables for extracting information from an Srf file (run without file for usage):
+
+    srf_to_sqt.rb file.srf     # => file.sqt
+    srf_to_search.rb file.srf  # => file.mgf  (also can make .dta files)
 
 === Ms::Sequest::Srf
 
