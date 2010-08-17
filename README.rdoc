@@ -13,8 +13,10 @@ Can read and convert Bioworks Sequest Results Files (SRF).
 
 Conversions (see api for options):
 
+    require 'ms/sequest/srf/sqt'  # require this in addition to 'ms/sequest/srf'
     srf.to_sqt            # (outputs a file) -> file.sqt
 
+    require 'ms/sequest/srf/search' # require this in addition to 'ms/sequest/srf'
     srf.to_mgf            # (outputs a file) -> file.mgf
     srf.to_dta            # (outputs a dir)  -> file
     srf.to_dta("file.tgz", :tgz)  # on the fly tgz (requires archive-tar-minitar)

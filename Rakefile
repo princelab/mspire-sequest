@@ -17,7 +17,6 @@ gemspec = Gem::Specification.new do |s|
 
   s.add_dependency("arrayclass", ">= 0.1.0")
   s.add_dependency("ms-core", ">= 0.0.2")
-  s.add_dependency("tap", ">= 0.17.1")
   s.add_dependency("ms-fasta", ">= 0.4.1")
 
   s.add_development_dependency("ms-testdata", ">= 0.18.0")
