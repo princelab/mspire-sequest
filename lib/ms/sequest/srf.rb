@@ -48,21 +48,26 @@ class Ms::Sequest::Srf
   end
 
   # returns a Sequest::Params object or nil if none
-  def self.get_sequest_params(filename)
+  def self.get_sequest_params_and_finish_pos(filename)
     # split the file in half and only read the second half (since we can be
     # confident that the params file will be there!)
+  
+    params = nil
+    finish_parsing_io_pos = nil
     File.open(filename, 'rb') do |handle|
       halfway = handle.stat.size / 2
       handle.seek halfway
       last_half = handle.read
-      if sequest_start_index = last_half.rindex('[SEQUEST]')
-        params_start_index =  sequest_start_index + halfway
+      if sequest_start_from_last_half = last_half.rindex('[SEQUEST]')
+        params_start_index =  sequest_start_from_last_half + halfway
         handle.seek(params_start_index)
-        Ms::Sequest::Params.new.parse_io(handle)
+        params = Ms::Sequest::Params.new.parse_io(handle)
+        finish_parsing_io_pos = handle.pos
       else
         nil  # not found
       end
     end
+    [params, finish_parsing_io_pos]
   end
 
   def dta_start_byte
@@ -91,9 +96,6 @@ class Ms::Sequest::Srf
   #     :read_pephits => true | false (default true)
   #     # will attempt to read peptide hit information (equivalent to .out
   #     # files), otherwise, just reads the dta information.
-  #
-  #     :params => <path/to/sequest.params> Some srf files do not include
-  #     their sequest params file - include it here if necessary.
   def initialize(filename=nil, opts={})
     @peps = []
 
@@ -172,33 +174,28 @@ class Ms::Sequest::Srf
   def from_file(filename, opts)
     opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true, :read_pephits => true}.merge(opts)
 
-    @params = 
-      if opts[:params]
-        Ms::Sequest::Params.new(opts[:params])
-      else
-        Ms::Sequest::Srf.get_sequest_params(filename)
-      end
+    (@params, after_params_io_pos) = Ms::Sequest::Srf.get_sequest_params_and_finish_pos(filename)
+    return unless @params
 
     dup_references = 0
     dup_refs_gt_0 = false
-    if @params
-      dup_references = @params.print_duplicate_references.to_i
-      if dup_references == 0
-        # warn %Q{
-#*****************************************************************************
-#WARNING: This srf file lists only 1 protein per peptide! (based on the
-#print_duplicate_references parameter in the sequest.params file used in its
-#creation)  So, downstream output will likewise only contain a single protein
-#for each peptide hit.  In many instances this is OK since downstream programs
-#will recalculate protein-to-peptide linkages from the database file anyway.
-#For complete protein lists per peptide hit, .srf files must be created with
-#print_duplicate_references > 0. HINT: to capture all duplicate references, 
-#set the sequest parameter 'print_duplicate_references' to 100 or greater.
-#*****************************************************************************
-#        }
-      else
-        dup_refs_gt_0 = true
-      end
+
+    dup_references = @params.print_duplicate_references.to_i
+    if dup_references == 0
+      # warn %Q{
+      #*****************************************************************************
+      #WARNING: This srf file lists only 1 protein per peptide! (based on the
+      #print_duplicate_references parameter in the sequest.params file used in its
+      #creation)  So, downstream output will likewise only contain a single protein
+      #for each peptide hit.  In many instances this is OK since downstream programs
+      #will recalculate protein-to-peptide linkages from the database file anyway.
+      #For complete protein lists per peptide hit, .srf files must be created with
+      #print_duplicate_references > 0. HINT: to capture all duplicate references, 
+      #set the sequest parameter 'print_duplicate_references' to 100 or greater.
+      #*****************************************************************************
+      #        }
+    else
+      dup_refs_gt_0 = true
     end
 
     File.open(filename, 'rb') do |fh|
@@ -225,11 +222,20 @@ class Ms::Sequest::Srf
         (@dta_files, @out_files) = read_dta_and_out_interleaved(fh, @header.num_dta_files, unpack_35, dup_refs_gt_0)
       else
         @base_name = @header.raw_filename.scan(/[\\\/]([^\\\/]+)\.RAW$/).first.first
+
         @dta_files = read_dta_files(fh, @header.num_dta_files, unpack_35)
         if opts[:read_pephits]
           # need the params file to know if the duplicate_references is set > 0
           raise NoSequestParamsError, "no sequest params info in srf file!\npass in path to sequest.params file" if @params.nil?
           @out_files = read_out_files(fh,@header.num_dta_files, unpack_35, dup_refs_gt_0)
+
+          # FOR DISPLAY ONLY!
+          #@out_files.each do |f|
+          #  if f.num_hits == 10
+          #    p f.hits.last
+          #  end
+          #end
+
           if fh.eof?
             #warn "FILE: '#{filename}' appears to be an abortive run (no params in srf file)\nstill continuing..."
             @params = nil
@@ -237,20 +243,12 @@ class Ms::Sequest::Srf
           end
         end
       end
-      start_pos_in_case = fh.pos
-      @params = Ms::Sequest::Params.new.parse_io(fh)
-      if @params.nil?
-        fh.pos = start_pos_in_case
-        # seek to the index
-        fh.scanf "\000\000\000\000" do |m|
-          puts "MATCHING NULLS: "
-          p m
-        end
-        warn "no params file, no index, corrupt file"
-      else # we have a params file
-        # This is very sensitive to the grab_params method in sequest params
-        fh.read(12)  ## gap between last params entry and index 
-      end
+
+      fh.pos = after_params_io_pos
+
+      # This is very sensitive to the grab_params method in sequest params
+      fh.read(12)  ## gap between last params entry and index 
+
       @index = read_scan_index(fh,@header.num_dta_files)
     end
 
@@ -287,6 +285,12 @@ class Ms::Sequest::Srf
 
   # returns an index where each entry is [first_scan, last_scan, charge]
   def read_scan_index(fh, num)
+    #string = fh.read(80)
+    #puts "STRING: "
+    #p string
+    #puts string
+    #File.open("tmp.tmp",'wb') {|out| out.print string }
+    #abort 'her'
     ind_len = 24
     index = Array.new(num)
     unpack_string = 'III'
@@ -294,6 +298,7 @@ class Ms::Sequest::Srf
     ind_len.times do st << '0' end  ## create a 24 byte string to receive data
     num.times do |i|
       fh.read(ind_len, st)
+      result = st.unpack(unpack_string)
       index[i] = st.unpack(unpack_string)
     end
     index

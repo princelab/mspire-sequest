@@ -39,14 +39,17 @@ M	10	17	1298.5350544522	0.235343858599663	0.823222815990448	151.717300415039	12	
 L	gi|90111124|ref|NP_414904.2|
 END
 
-Srf_file = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf' 
-Srf_output = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.sqt.tmp'
+
+module SPEC
+  Srf_file = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf' 
+  Srf_output = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.sqt.tmp'
+end
 
 shared 'an srf to sqt converter' do
 
   before do
     @original_db_filename = "C:\\Xcalibur\\database\\ecoli_K12_ncbi_20060321.fasta"
-    @output = Srf_output
+    @output = SPEC::Srf_output
   end
 
   def del(file)
@@ -132,14 +135,14 @@ end
 
 describe "programmatic interface srf to sqt" do
 
-  @srf = Ms::Sequest::Srf.new(Srf_file)
+  @srf = Ms::Sequest::Srf.new(SPEC::Srf_file)
 
-  @basic_conversion = lambda { @srf.to_sqt(Srf_output) }
-  @with_new_db_path = lambda { @srf.to_sqt(Srf_output, :db_info => true, :new_db_path => Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') }
-  @update_the_db_path = lambda { @srf.to_sqt(Srf_output, :new_db_path => Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33', :update_db_path => true) }
+  @basic_conversion = lambda { @srf.to_sqt(SPEC::Srf_output) }
+  @with_new_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :db_info => true, :new_db_path => Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') }
+  @update_the_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :new_db_path => Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33', :update_db_path => true) }
 
   before do
-    @output = Srf_output
+    @output = SPEC::Srf_output
   end
 
   behaves_like "an srf to sqt converter"
@@ -170,7 +173,7 @@ describe "command-line interface srf to sqt" do
     lambda { Ms::Sequest::Srf::Sqt.commandline( string.split(/\s+/) ) }
   end
 
-  base_cmd = "#{Srf_file} -o #{Srf_output}"
+  base_cmd = "#{SPEC::Srf_file} -o #{SPEC::Srf_output}"
   @basic_conversion = commandline_lambda(base_cmd)
   @with_new_db_path = commandline_lambda(base_cmd + " --db-info --db-path #{Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'}")
   @update_the_db_path = commandline_lambda(base_cmd + " --db-path #{Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'} --db-update" )
