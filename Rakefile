@@ -1,40 +1,36 @@
 require 'rubygems'
+require 'bundler'
+begin
+  Bundler.setup(:default, :development)
+rescue Bundler::BundlerError => e
+  $stderr.puts e.message
+  $stderr.puts "Run `bundle install` to install missing gems"
+  exit e.status_code
+end
 require 'rake'
+
 require 'jeweler'
+Jeweler::Tasks.new do |gem|
+  gem.name = "ms-sequest"
+  gem.homepage = "http://github.com/jtprince/ms-sequest"
+  gem.license = "MIT"
+  gem.summary = %Q{An mspire library supporting SEQUEST, Bioworks, SQT, etc}
+  gem.description = %Q{reads .SRF, .SQT and supports conversions}
+  gem.email = "jtprince@gmail.com"
+  gem.authors = ["John T. Prince"]
+  gem.rubyforge_project = 'mspire'
+  # include dependencies in Gemfile
+end
+Jeweler::RubygemsDotOrgTasks.new
+
 require 'rake/testtask'
+Rake::TestTask.new(:spec) do |spec|
+  spec.libs << 'lib' << 'spec'
+  spec.pattern = 'spec/**/*_spec.rb'
+  spec.verbose = true
+end
+
 require 'rcov/rcovtask'
-
-NAME = "ms-sequest"
-
-gemspec = Gem::Specification.new do |s|
-  s.name = NAME
-  s.authors = ["John T. Prince"]
-  s.email = "jtprince@gmail.com"
-  s.homepage = "http://github.com/jtprince/" + NAME
-  s.summary = "An mspire library supporting SEQUEST, Bioworks, SQT, etc"
-  s.description = "reads .SRF, .SQT and supports conversions"
-  s.rubyforge_project = 'mspire'
-
-  s.add_dependency("arrayclass", ">= 0.1.0")
-  s.add_dependency("ms-core", ">= 0.0.2")
-  s.add_dependency("ms-fasta", ">= 0.4.1")
-
-  s.add_development_dependency("ms-testdata", ">= 0.18.0")
-  s.add_development_dependency("spec-more")
-end
-Jeweler::Tasks.new(gemspec)
-
-Rake::TestTask.new(:spec) do |t|
-  t.libs << 'lib' << 'spec'
-  t.pattern = 'spec/**/*_spec.rb'
-  t.verbose = true
-  unless ENV['gems']
-    t.libs << 'submodule/ms-testdata/lib'
-    #t.libs << 'submodule/ms-in_silico/lib'
-    #t.libs << 'submodule/tap-mechanize/lib'
-  end
-end
-
 Rcov::RcovTask.new do |spec|
   spec.libs << 'spec'
   spec.pattern = 'spec/**/*_spec.rb'
@@ -42,4 +38,23 @@ Rcov::RcovTask.new do |spec|
 end
 
 task :default => :spec
+
+require 'rake/rdoctask'
+Rake::RDocTask.new do |rdoc|
+  version = File.exist?('VERSION') ? File.read('VERSION') : ""
+
+  rdoc.rdoc_dir = 'rdoc'
+  rdoc.title = "ms-sequest #{version}"
+  rdoc.rdoc_files.include('README*')
+  rdoc.rdoc_files.include('lib/**/*.rb')
+end
+
+
+
+
+
+
+
+
+
 
