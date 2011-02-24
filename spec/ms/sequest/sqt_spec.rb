@@ -1,7 +1,6 @@
-require File.expand_path( File.dirname(__FILE__) + '/../../spec_helper' )
+require 'spec_helper'
 
-require File.dirname(__FILE__) + '/sqt_spec_helper'
-
+require 'ms/sequest/sqt_spec_helper'
 require 'ms/sequest/sqt'
 
 describe 'reading a small sqt file' do

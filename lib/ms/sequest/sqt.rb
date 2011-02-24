@@ -70,8 +70,10 @@ module Ms
         total_sequence_length = 0
         fastasize = 0
         Ms::Fasta.open(dbfile) do |fasta|
-          fasta.each {|entry| total_sequence_length += entry.sequence.size }
-          fastasize = fasta.size
+          fasta.each do |entry| 
+            total_sequence_length += entry.sequence.size 
+            fastasize += 1
+          end
         end
         [total_sequence_length, fastasize]
       end

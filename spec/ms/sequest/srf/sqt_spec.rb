@@ -1,4 +1,4 @@
-require File.expand_path( File.dirname(__FILE__) + '/../../../spec_helper' )
+require 'spec_helper'
 
 require 'ms/sequest/srf'
 require 'ms/sequest/srf/sqt'
@@ -25,6 +25,11 @@ ExpasyStaticMods = ['C=160.1901','Cterm=10.1230','E=161.4455']
 MoleculesStaticMods = ["C=160.1942", "Cterm=10.1230", "E=161.44398"]
 SpecHelperHeaderHash['StaticMod'] = MoleculesStaticMods 
 
+# these only need to be really close
+Close_indices = {
+  'S' => [6,7],
+  'M' => [3,4,5,6],
+}
 
 SpecHelperOtherLines =<<END
 S	2	2	1	0.0	VELA	391.04541015625	3021.5419921875	0.0	0
@@ -42,7 +47,8 @@ END
 
 module SPEC
   Srf_file = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf' 
-  Srf_output = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.sqt.tmp'
+  TMPDIR = TESTFILES + '/tmp'
+  Srf_output = TMPDIR + '/000.sqt.tmp'
 end
 
 shared 'an srf to sqt converter' do
@@ -88,6 +94,23 @@ shared 'an srf to sqt converter' do
     end
   end
 
+  def sqt_line_match(act_line_ar, exp_line_ar)
+    exp_line_ar.zip(act_line_ar) do |exp_line, act_line|
+      (e_pieces, a_pieces) = [exp_line, act_line].map {|line| line.chomp.split("\t") } 
+      if %w(S M).include?(k = e_pieces[0])
+        (e_close, a_close) = [e_pieces, a_pieces].map do |pieces| 
+          Close_indices[k].sort.reverse.map do |i|
+            pieces.delete_at(i).to_f
+          end.reverse
+        end
+        e_close.zip(a_close) do |ex, ac|
+          ex.should.be.close ac, 0.0000001
+        end
+      end
+      e_pieces.enums a_pieces
+    end
+  end
+
   it 'converts without bothering with the database' do
     @basic_conversion.call
     ok File.exist?(@output)
@@ -97,8 +120,10 @@ shared 'an srf to sqt converter' do
     ok(header_lines.size > 10)
     ok header_hash_match(header_lines, SpecHelperHeaderHash)
     other_lines = lines.grep(/^[^H]/)
-    other_lines[0,4].join('').is SpecHelperOtherLines
-    other_lines[-3,3].join('').is SpecHelperOtherLinesEnd
+
+    sqt_line_match(other_lines[0,4], SpecHelperOtherLines.strip.split("\n"))
+    sqt_line_match(other_lines[-3,3], SpecHelperOtherLinesEnd.strip.split("\n"))
+
     del(@output)
   end
 
@@ -134,6 +159,12 @@ shared 'an srf to sqt converter' do
 end
 
 describe "programmatic interface srf to sqt" do
+  before do
+    FileUtils.mkdir(SPEC::TMPDIR) unless File.exist?(SPEC::TMPDIR)
+  end
+  after do
+    FileUtils.rm_rf(SPEC::TMPDIR)
+  end
 
   @srf = Ms::Sequest::Srf.new(SPEC::Srf_file)
 
@@ -169,6 +200,14 @@ describe "programmatic interface srf to sqt" do
 end
 
 describe "command-line interface srf to sqt" do
+  before do
+    FileUtils.mkdir(SPEC::TMPDIR) unless File.exist?(SPEC::TMPDIR)
+  end
+  after do
+    FileUtils.rm_rf(SPEC::TMPDIR)
+  end
+
+
   def commandline_lambda(string)
     lambda { Ms::Sequest::Srf::Sqt.commandline( string.split(/\s+/) ) }
   end
