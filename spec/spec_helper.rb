@@ -1,25 +1,20 @@
-
 require 'rubygems'
-require 'spec/more'
-
-Bacon.summary_on_exit
-
-# is this already defined??
-TESTFILES = File.expand_path(File.dirname(__FILE__)) + "/testfiles"
+require 'bundler'
 
 begin
-  require 'ms/testdata'
-rescue(LoadError)
-  puts %Q{
-Tests probably cannot be run because the submodules have
-not been initialized. Use these commands and try again:
- 
-% git submodule init
-% git submodule update
- 
-}
-  raise
+  Bundler.setup(:default, :development)
+rescue Bundler::BundlerError => e
+  $stderr.puts e.message
+  $stderr.puts "Run `bundle install` to install missing gems"
+  exit e.status_code
 end
+require 'spec/more'
+require 'ms/testdata'
+
+$LOAD_PATH.unshift(File.dirname(__FILE__))
+$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
+
+Bacon.summary_on_exit
 
 def capture_stderr
   begin
@@ -30,4 +25,8 @@ def capture_stderr
     $stderr = STDERR
   end
 end
+
+TESTFILES = File.dirname(__FILE__) + '/testfiles'
+SEQUEST_DIR = Ms::TESTDATA + '/sequest' 
+
 

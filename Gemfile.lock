@@ -11,7 +11,11 @@ GEM
       rake
     ms-core (0.0.11)
       bio (>= 1.4.1)
+    ms-ident (0.0.1)
+      ms-core (>= 0.0.11)
+      nokogiri
     ms-testdata (0.1.1)
+    nokogiri (1.4.4)
     rake (0.8.7)
     rcov (0.9.9)
     spec-more (0.0.4)
@@ -25,6 +29,7 @@ DEPENDENCIES
   bundler (~> 1.0.0)
   jeweler (~> 1.5.2)
   ms-core (>= 0.0.11)
+  ms-ident (>= 0.0.1)
   ms-testdata (>= 0.1.1)
   rcov
   spec-more
