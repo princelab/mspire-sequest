@@ -1,6 +1,6 @@
 require 'ms/sequest/srf'
 require 'ms/ident/pepxml'
-require 'ms/ident/parameters'
+require 'ms/sequest/pepxml'
 
 class Ms::Sequest::Srf
   module Pepxml
@@ -9,49 +9,160 @@ class Ms::Sequest::Srf
       ## MSMSRunSummary options:
       # string must be recognized in sample_enzyme.rb 
       # or create your own SampleEnzyme object
-      :ms_manufacturer => 'Thermo',
-      :ms_model => 'LTQ Orbitrap',
       :ms_ionization => 'ESI',
-      :ms_mass_analyzer => 'Orbitrap',
       :ms_detector => 'UNKNOWN',
-      :raw_data_type => "raw",
       :raw_data => ".mzXML", ## even if you don't have it?
+      :db_seq_type => 'AA', # AA or NA
+      :ms_mass_analyzer => nil,
+      :outbasename => nil,
+      :mzxml_dir => nil, # path to the mzxml directory
+      :ms_manufacturer => 'Thermo',
+      :pepxml_version => Ms::Ident::Pepxml::DEFAULT_PEPXML_VERSION,
       ## SearchSummary options:
-      :out_data_type => "out", ## may be srf??
-      :out_data => ".tgz", ## may be srf??
     }
 
-    def to_pepxml(out_filename=nil, opts={})
+    # can set :ms_mass_analyzer directly, or use a regexp to provide the
+    # ms_mass_analyzer value.
+    ModelToMsAnalyzer = [
+      [/Orbitrap/, 'Orbitrap'], 
+      [/LCQ Deca XP/, 'Ion Trap'],
+      [/LTQ/, 'Ion Trap'],
+      [/\w+/, 'UNKNOWN'],
+    ]
+
+    # Generates pepxml xml.  If outdir is nil, the outdir will be derived from
+    # the raw filename.
+    #
+    # returns the full path of the output file.
+    #
+    # the filename will be based on the raw filename, unless :outbasename is
+    # specified.
+    # 
+    def to_pepxml(outdir=nil, opts={})
+      srf = self
       opts = DEFAULT_OPTIONS.merge(opts)
 
-      ## set the outpath
-      out_path = opts.delete(:out_path)
+      # with newer pepxml version these are not required anymore
+      hidden_opts = {
+        :raw_data_type => "raw",
+        :out_data_type => "out", ## may be srf??
+        :out_data => ".tgz", ## may be srf??
+        # :ms_mass_analyzer => 'Orbitrap', ???? 
+      }
+      opts.merge!(hidden_opts)
+      opts[:outdir] = 
+        if outdir ; outdir
+        else
+          srf.header.raw_filename.split(/[\/\\]+/)[0..-2].join('/')
+        end
 
       params = srf.params
+      header = srf.header
 
-      ## check to see if we need backup_db
-      backup_db_path = opts.delete(:backup_db_path)
-      if !File.exist?(params.database) && backup_db_path
-        params.database_path = backup_db_path
-      end
+      #bn_noext = if out_filename
+      #  
+      #             base_name_noext(srf.header.raw_filename)
 
-      #######################################################################
-      # PREPARE THE OPTIONS:
-      #######################################################################
-      ## remove items from the options hash that don't belong to 
-      ppxml_version = opts.delete(:pepxml_version)
-      out_data_type = opts.delete(:out_data_type)
-      out_data = opts.delete(:out_data)
-
-      ## Extract meta info from srf
-      bn_noext = base_name_noext(srf.header.raw_filename)
       opts[:ms_model] = srf.header.model
-      case opts[:ms_model]
-      when /Orbitrap/
-        opts[:ms_mass_analyzer] = 'Orbitrap'
-      when /LCQ Deca XP/
-        opts[:ms_mass_analyzer] = 'Ion Trap'
+
+      unless opts[:ms_mass_analyzer]
+        ModelToMsAnalyzer.each do |regexp, val|
+          if opts[:ms_model].match(regexp)
+            opts[:ms_mass_analyzer] = val
+            break
+          end
+        end
       end
+
+      # get the database name
+      db_filename = header.db_filename.sub(/\.hdr$/, '')
+      if opt[:db_dir]
+        db_filename = File.join(opt[:db_dir], db_filename.split(/[\/\\]+/).last)
+      end
+      unless File.exist?(db_filename)
+        $stderr.puts "!!! Can't find database: #{db_filename}"
+        $stderr.puts "!!! pepxml *requires* that the db path be valid"
+        $stderr.puts "!!! make sure 1) the fasta file is available on this system"
+        $stderr.puts "!!!           2) you've specified a valid directory with --db-dir (or :db_dir)"
+      end
+      db_filename = File.expand_path(db_filename)
+
+      pepxml = Pepxml.new do |msms_pipeline_analysis|
+        msms_pipeline_analysis.merge!(:summary_xml => srf.base_name_noext + '.xml', :pepxml_version => opts[:pepxml_version]) do |msms_run_summary|
+          # prep the sample enzyme and search_summary
+          msms_run_summary.merge!(
+            :base_name => opts[:mzxml_dir],
+            :ms_manufacturer => opts[:ms_manufacturer],
+            :ms_model => opts[:ms_model],
+            :ms_ionization => opts[:ms_ionization],
+            :ms_mass_analyzer => opts[:ms_mass_analyzer],
+            :ms_detector => opts[:ms_detector],
+          ) do |sample_enzyme, search_summary, spectrum_queries|
+            sample_enzyme.merge!(params.sample_enzyme_hash)
+            search_summary.merge!(
+              :base_name=> srf.resident_dir + '/' + srf.base_name_noext,
+              :search_engine => 'SEQUEST',
+              :precursor_mass_type => params.precursor_mass_type,
+              :fragment_mass_type => params.fragment_mass_type,
+            ) do |search_database, enzymatic_search_constraint, modifications, parameters|
+              search_database.merge!(:local_path => db_filename, :seq_type => opts[:db_seq_type]) # note seq_type == type
+              enzymatic_search_constraint.merge!(
+                :enzyme => params.enzyme, 
+                :max_num_internal_cleavages => params.max_num_internal_cleavages,
+                :min_number_termini => params.min_number_termini,
+              )
+              modifications << Pepxml::AminoacidModification.new(
+                :aminoacid => 'M', :massdiff => 15.9994, :mass => Ms::Mass::AA::MONO['M']+15.9994,
+                :variable => 'Y', :symbol => '*')
+                # invented, for example, a protein terminating mod
+                modifications << Pepxml::TerminalModification.new( 
+                                                                  :terminus => 'c', :massdiff => 23.3333, :mass => Ms::Mass::MONO['oh'] + 23.3333, 
+                                                                  :variable => 'Y', :symbol => '[', :protein_terminus => 'c', 
+                                                                  :description => 'leave protein_terminus off if not protein mod'
+                                                                 )
+                                                                 modifications << Pepxml::TerminalModification.new( 
+                                                                                                                   :terminus => 'c', :massdiff => 25.42322, :mass => Ms::Mass::MONO['h+'] + 25.42322, 
+                                                                                                                   :variable => 'N', :symbol => ']', :description => 'example: c term mod'
+                                                                                                                  )
+                                                                                                                  parameters.merge!( 
+                                                                                                                                    :fragment_ion_tolerance => 1.0000, 
+                                                                                                                                    :digest_mass_range => '600.0 3500.0', 
+                                                                                                                                    :enzyme_info => 'Trypsin(KR/P) 1 1 KR P', # etc.... 
+                                                                                                                                   )
+            end
+            spectrum_query1 = Pepxml::SpectrumQuery.new(
+              :spectrum  => '020.3.3.1', :start_scan => 3, :end_scan => 3, 
+              :precursor_neutral_mass => 1120.93743421875, :assumed_charge => 1
+            ) do |search_results|
+              search_result1 = Pepxml::SearchResult.new do |search_hits|
+                modpositions = [[1, 243.1559], [6, 167.0581], [7,181.085]].map do |pair|  
+                  Pepxml::SearchHit::ModificationInfo::ModAminoacidMass.new(*pair)
+                end
+                # order(modified_peptide, mod_aminoacid_masses, :mod_nterm_mass, :mod_cterm_mass)
+                # or can be set by hash
+                mod_info = Pepxml::SearchHit::ModificationInfo.new('Y#RLGGS#T#K', modpositions)
+                search_hit1 = Pepxml::SearchHit.new( 
+                                                    :hit_rank=>1, :peptide=>'YRLGGSTK', :peptide_prev_aa => "R", :peptide_next_aa => "K",
+                                                    :protein => "gi|16130113|ref|NP_416680.1|", :num_tot_proteins => 1, :num_matched_ions => 5,
+                                                    :tot_num_ions => 35, :calc_neutral_pep_mass => 1120.93163442, :massdiff => 0.00579979875010395,
+                                                    :num_tol_term => 2, :num_missed_cleavages => 1, :is_rejected => 0, 
+                                                    :modification_info => mod_info) do |search_scores|
+                  search_scores.merge!(:xcorr => 0.12346, :deltacn => 0.7959, :deltacnstar => 0, 
+                                       :spscore => 29.85, :sprank => 1)
+                                                    end
+                search_hits << search_hit1
+              end
+              search_results << search_result1
+            end
+            spectrum_queries << spectrum_query1
+          end
+        end
+      end
+
+
+
+
+
 
       ## Create the base name
       full_base_name_no_ext = make_base_name( File.expand_path(out_path), bn_noext)
@@ -256,8 +367,7 @@ module Ms::Sequest::Srf::Pepxml
       op.separator ""
       op.separator "options:"
       op.on("-d", "--db-info", "calculates extra database information") {|v| opt[:db_info] = v }
-      op.on("-p", "--db-path <String>", "If you need to specify the database path") {|v| opt[:new_db_path] = v }
-      op.on("-u", "--db-update", "update the sqt file to reflect --db_path") {|v| opt[:db_update] = v }
+      op.on("-p", "--db-dir <String>", "The dir holding the DB if different than in Srf", "[pepxml requires a valid path]") {|v| opt[:db_dir] = v }
       op.on("-n", "--no-filter", "by default, pephit must be within peptide_mass_tolerance",  "(defined in sequest.params) to be included.  Turns this off.") { opt[:filter] = false }
       op.on("-o", "--outfiles <first,...>", Array, "Comma list of output filenames") {|v| opt[:outfiles] = v }
     end
@@ -281,7 +391,7 @@ module Ms::Sequest::Srf::Pepxml
         end
 
       srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
-      srf.to_pepxml(outfile, :db_info => opt[:db_info], :new_db_path => opt[:new_db_path], :update_db_path => opt[:db_update], :round => opt[:round])
+      srf.to_pepxml(outfile, :db_info => opt[:db_info], :db_dir => opt[:db_dir], :round => opt[:round])
     end
   end
 end

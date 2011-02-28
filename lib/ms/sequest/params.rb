@@ -269,26 +269,6 @@ class Ms::Sequest::Params
     return "1"
   end
 
-  ## returns a SampleEnzyme object
-  #def sample_enzyme
-  #  (offset, cleave_at, except_if_after) = enzyme_specificity.map do |v|
-  #    if v == '' ; nil ; else v end
-  #  end
-  #  SampleEnzyme.new do |se|
-  #    se.name = self.enzyme
-  #    se.cut = cleave_at
-  #    se.no_cut = except_if_after
-  #    se.sense =
-  #      if se.name == "No_Enzyme"
-  #        nil
-  #      elsif offset == 1
-  #        'C'
-  #      elsif offset == 0
-  #        'N'
-  #      end
-  #  end
-  #end
-
   # returns the enzyme name (but no parentheses connected with the name).
   # this will likely be capitalized.
   def enzyme

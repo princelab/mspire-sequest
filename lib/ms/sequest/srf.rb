@@ -37,7 +37,16 @@ class Ms::Sequest::Srf
   # a parallel array to dta_files and out_files where each entry is:
   # [first_scan, last_scan, charge]
   attr_accessor :index
+
+  # the base name of the file with no extension
   attr_accessor :base_name
+
+  alias_method :base_name_noext, :base_name
+  alias_method :base_name_noext=, :base_name=
+
+  # the directory the srf file was residing in when the filename was passed
+  # in.  May not be available.
+  attr_accessor :resident_dir
 
   # a boolean to indicate if the results have been filtered by the
   # sequest.params precursor mass tolerance
@@ -172,6 +181,7 @@ class Ms::Sequest::Srf
   # returns self
   # opts are the same as for 'new'
   def from_file(filename, opts)
+    @resident_dir = File.dirname(File.expand_path(filename))
     opts = { :filter_by_precursor_mass_tolerance => true, :link_protein_hits => true, :read_pephits => true}.merge(opts)
 
     (@params, after_params_io_pos) = Ms::Sequest::Srf.get_sequest_params_and_finish_pos(filename)
