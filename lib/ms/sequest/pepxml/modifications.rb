@@ -3,7 +3,7 @@ module Ms ; end
 module Ms::Sequest ; end
 class Ms::Sequest::Pepxml ; end
 
-class Ms::Sequest::PepXML::Modifications
+class Ms::Sequest::Pepxml::Modifications
   # sequest params object
   attr_accessor :params
   # array holding AAModifications 
@@ -231,7 +231,7 @@ class Ms::Sequest::PepXML::Modifications
     end
     if hash.size > 1  # if there is more than just the modified peptide there
       Ms::Ident::Pepxml::SearchHit::ModificationInfo.new(hash)
-      #Sequest::PepXML::SearchHit::ModificationInfo.new(hash.values_at(:modified_peptide, :mod_aminoacid_masses, :mod_nterm_mass, :mod_cterm_mass)
+      #Sequest::Pepxml::SearchHit::ModificationInfo.new(hash.values_at(:modified_peptide, :mod_aminoacid_masses, :mod_nterm_mass, :mod_cterm_mass)
     else
       nil
     end
