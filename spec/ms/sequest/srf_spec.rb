@@ -1,5 +1,5 @@
-require File.expand_path( File.dirname(__FILE__) + '/../../spec_helper' )
-require File.expand_path( File.dirname(__FILE__) + '/srf_spec_helper' )
+require 'spec_helper'
+require 'ms/sequest/srf_spec_helper' # in spec/
 
 require 'ms/sequest/srf'
 
@@ -12,7 +12,7 @@ class Hash
     self.all? do |k,v|
       k = k.to_sym
       retval = 
-        if k == :peaks or k == :hits or k == :prots
+        if k == :peaks or k == :hits or k == :proteins
           obj.send(k).size == v
         elsif v.class == Float
           delta = 

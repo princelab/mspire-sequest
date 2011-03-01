@@ -19,7 +19,7 @@ describe 'an Ms::Ident::Pepxml object from an srf file with modifications' do
   @srf_files = %w(020 040).map {|f| SEQUEST_DIR + '/opd1_2runs_2mods/sequest331/' + f + '.srf' }
   @out_path = TESTFILES + '/tmp'
   @pepxmls = @srf_files.each do |srf_file|
-    Ms::Ident::Pepxml.new(srf_file)
+    Ms::Sequest::Srf.new(srf_file).to_pepxml
   end
 
   it 'exists' do

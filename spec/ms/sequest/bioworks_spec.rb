@@ -13,10 +13,10 @@ describe Bioworks, 'set from an xml file' do
   it 'can set one with labeled proteins' do
     file = Tfiles + "/bioworks_with_INV_small.xml"
     obj = Bioworks.new(file)
-    obj.prots.size.should == 19
+    obj.proteins.size.should == 19
     file = Tfiles + '/bioworks_small.xml'
     obj = Bioworks.new(file)
-    obj.prots.size.should == 106
+    obj.proteins.size.should == 106
   end
 
   it 'can parse an xml file NOT derived from multi-concensus' do
@@ -28,10 +28,10 @@ describe Bioworks, 'set from an xml file' do
     obj.global_filename.should == gfn
     obj.origfilename.should == origfilename
     obj.origfilepath.should == origfilepath
-    obj.prots.size.should == 7
-    obj.prots.first.peps.first.base_name.should ==  gfn
-    obj.prots.first.peps.first.file.should ==  "152"
-    obj.prots.first.peps.first.charge.should == 2
+    obj.proteins.size.should == 7
+    obj.proteins.first.peptides.first.base_name.should ==  gfn
+    obj.proteins.first.peptides.first.file.should ==  "152"
+    obj.proteins.first.peptides.first.charge.should == 2
     # @TODO: add more tests here
   end
 
@@ -57,7 +57,7 @@ describe Bioworks, 'set from an xml file' do
   def _assert_equal_pieces(exp, act, prot)
     # equal as floats (by delta)
     exp.each_index do |i|
-      if i == 5  # both prots and peps
+      if i == 5  # both proteins and peptides
         act[i].to_f.should be_close(exp[i].to_f, 0.1)
       elsif i == 3 && !prot
         act[i].to_f.should be_close(exp[i].to_f, 0.01)
@@ -99,7 +99,7 @@ describe Bioworks, 'set from an xml file' do
     end
     exp_peps = exp_peps.zip(exp_prots)
     exp_peps.collect! do |both|
-      both[0].prots = [both[1]]
+      both[0].proteins = [both[1]]
       both[0]
     end
 
@@ -107,8 +107,8 @@ describe Bioworks, 'set from an xml file' do
       pep = Bioworks::Pep.new
       pep.charge = arr[0]
       pep.sequence = arr[1]
-      pep.prots = [Bioworks::Prot.new]
-      pep.prots.first.reference = "#{cnt}"
+      pep.proteins = [Bioworks::Prot.new]
+      pep.proteins.first.reference = "#{cnt}"
       cnt += 1
       pep
     end
@@ -130,7 +130,7 @@ end
 
 describe Bioworks::Pep do
   it 'can be initialized from a hash' do
-    hash = {:sequence => 0, :mass => 1, :deltamass => 2, :charge => 3, :xcorr => 4, :deltacn => 5, :sp => 6, :rsp => 7, :ions => 8, :count => 9, :tic => 10, :prots => 11, :base_name => 12, :first_scan => 13, :last_scan => 14, :peptide_probability => 15, :file => 16, :_num_prots => 17, :_first_prot => 18}
+    hash = {:sequence => 0, :mass => 1, :deltamass => 2, :charge => 3, :xcorr => 4, :deltacn => 5, :sp => 6, :rsp => 7, :ions => 8, :count => 9, :tic => 10, :proteins => 11, :base_name => 12, :first_scan => 13, :last_scan => 14, :peptide_probability => 15, :file => 16, :_num_proteins => 17, :_first_prot => 18}
     pep = Bioworks::Pep.new(hash)
     hash.each do |k,v|
       pep.send(k).should == v

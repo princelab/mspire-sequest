@@ -12,7 +12,7 @@ require 'ms/id/search'
 module Ms
   module Sequest
     class SqtGroup
-      include Ms::Id::SearchGroup
+      include Ms::Ident::SearchGroup
 
       #attr_accessor :sqts, :filenames
 
@@ -28,7 +28,7 @@ module Ms
         super(arg, opts.merge(indiv_opts)) do
           unless orig_opts[:link_protein_hits] == false
             puts "MERGING GROUP!"
-            (@peps, @prots) = merge!(@searches.map {|v| v.peps }, &Ms::Sequest::Sqt::NEW_PROT)
+            (@peptides, @proteins) = merge!(@searches.map {|v| v.peptides }, &Ms::Sequest::Sqt::NEW_PROT)
           end
         end
         block.call(self) if block_given?
@@ -56,7 +56,7 @@ module Ms
 
 
     class Sqt
-      include Ms::Id::Search
+      include Ms::Ident::Search
       PercolatorHeaderMatch = /^Percolator v/
         Delimiter = "\t"
       attr_accessor :header
@@ -108,15 +108,15 @@ module Ms
       #     :percolator_results => false | true (default false)
       #     :link_protein_hits => true | false (default true)
       def initialize(filename=nil, opts={})
-        @peps = []
-        @prots = []
+        @peptides = []
+        @proteins = []
         if filename
           from_file(filename, opts)
         end
       end
 
-      NEW_PROT = lambda do |_prot, _peps| 
-        Ms::Sequest::Sqt::Locus.new([_prot.locus, _prot.description, _peps])
+      NEW_PROT = lambda do |_prot, _peptides|
+        Ms::Sequest::Sqt::Locus.new([_prot.locus, _prot.description, _peptides])
       end
 
       # if the file contains the header key '/$Percolator v/' then the results
@@ -131,10 +131,10 @@ module Ms
           if @header.keys.any? {|v| v =~ PercolatorHeaderMatch }
             @percolator_results = true
           end
-          (@spectra, @peps) = Ms::Sequest::Sqt::Spectrum.spectra_from_handle(fh, @base_name, @percolator_results)
+          (@spectra, @peptides) = Ms::Sequest::Sqt::Spectrum.spectra_from_handle(fh, @base_name, @percolator_results)
         end
         if opts[:link_protein_hits]
-          (@peps, @prots) = merge!([@peps], &NEW_PROT)
+          (@peptides, @proteins) = merge!([@peptides], &NEW_PROT)
         end
       end
 
@@ -238,7 +238,7 @@ class Ms::Sequest::Sqt::Spectrum
 
   # assumes the first line starts with an 'S'
   def self.spectra_from_handle(fh, base_name, percolator_results=false)
-    peps = []
+    peptides = []
     spectra = []
     
     while line = fh.gets
@@ -258,7 +258,7 @@ class Ms::Sequest::Sqt::Spectrum
         match[10,3] = spectrum[0,3]
         match[15] = base_name
         matches << match
-        peps << match
+        peptides << match
         loci = []
         match.loci = loci
         matches << match
@@ -271,7 +271,7 @@ class Ms::Sequest::Sqt::Spectrum
     end
     # set the deltacn:
     set_deltacn(spectra)
-    [spectra, peps]
+    [spectra, peptides]
   end
 
   def self.set_deltacn(spectra)
@@ -322,7 +322,7 @@ class Ms::Sequest::Sqt::Match
   Leader = 'M'
 
   # same as 'loci'
-  def prots
+  def proteins
     self[16]
   end
 
@@ -339,7 +339,7 @@ class Ms::Sequest::Sqt::Match
     self[7] = ar[8].to_i
     self[8] = ar[9]
     self[9] = ar[10]
-    self[14] = Ms::Id::Peptide.sequence_to_aaseq(self[8])
+    self[14] = Ms::Ident::Peptide.sequence_to_aaseq(self[8])
     self
   end
 end
@@ -374,7 +374,7 @@ class Ms::Sequest::Sqt::Match::Percolator < Ms::Sequest::Sqt::Match
   end
 end
 
-Ms::Sequest::Sqt::Locus = Arrayclass.new(%w[locus description peps])
+Ms::Sequest::Sqt::Locus = Arrayclass.new(%w[locus description peptides])
 
 class Ms::Sequest::Sqt::Locus
   Leader = 'L'

@@ -27,7 +27,7 @@ class Bioworks
   @@origfilepath_re = /<origfilepath>(.*)<\/origfilepath>/o
 
 
-  attr_accessor :peps, :prots, :version, :global_filename, :origfilename, :origfilepath
+  attr_accessor :peps, :proteins, :version, :global_filename, :origfilename, :origfilepath
   # a string of modifications e.g., "(M* +15.99491) (S@ +14.9322) "
   attr_accessor :modifications
 
@@ -42,7 +42,7 @@ class Bioworks
 
   # returns the number of prots.  Raises an Exception if open and closing xml
   # tags don't agree
-  def num_prots(file)
+  def num_proteins(file)
     re = /(<protein>)|(<\/protein>)/mo
     begin_tags = 0
     end_tags = 0

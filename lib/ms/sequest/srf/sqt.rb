@@ -159,7 +159,7 @@ module Ms
                 end
                 # note that the rank is determined by the order..
                 out.puts ['M', index+1, hit.rsp, hit_mh, hit_deltacn_orig_updated, hit_xcorr, hit_sp, hit.ions_matched, hit.ions_total, hit.sequence, manual_validation_status].join("\t")
-                hit.prots.each do |prot|
+                hit.proteins.each do |prot|
                   out.puts ['L', prot.first_entry].join("\t")
                 end
               end

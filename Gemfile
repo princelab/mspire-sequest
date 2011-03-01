@@ -2,9 +2,10 @@ source "http://rubygems.org"
 # Add dependencies required to use your gem here.
 # Example:
 #   gem "activesupport", ">= 2.3.5"
-gem "ms-ident", ">= 0.0.3"
-gem "ms-core", ">= 0.0.13"
+gem "ms-ident", ">= 0.0.7"
+gem "ms-core", ">= 0.0.14"
 gem "arrayclass", ">= 0.1.0"
+gem "ms-msrun", ">= 0.3.3"
 
 # Add dependencies to develop your gem here.
 # Include everything needed to run rake, tests, features, etc.

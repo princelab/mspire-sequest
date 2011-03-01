@@ -10,13 +10,18 @@ GEM
       bundler (~> 1.0.0)
       git (>= 1.2.5)
       rake
-    ms-core (0.0.13)
+    ms-core (0.0.14)
       bio (>= 1.4.1)
-    ms-ident (0.0.3)
+    ms-ident (0.0.7)
       andand
       ms-core (>= 0.0.12)
       nokogiri
+    ms-msrun (0.3.3)
+      ms-core (>= 0.0.3)
+      narray
+      nokogiri
     ms-testdata (0.1.1)
+    narray (0.5.9.9)
     nokogiri (1.4.4)
     rake (0.8.7)
     rcov (0.9.9)
@@ -30,8 +35,9 @@ DEPENDENCIES
   arrayclass (>= 0.1.0)
   bundler (~> 1.0.0)
   jeweler (~> 1.5.2)
-  ms-core (>= 0.0.13)
-  ms-ident (>= 0.0.3)
+  ms-core (>= 0.0.14)
+  ms-ident (>= 0.0.7)
+  ms-msrun (>= 0.3.3)
   ms-testdata (>= 0.1.1)
   rcov
   spec-more
