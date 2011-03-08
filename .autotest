@@ -1,14 +1,30 @@
 # -*- ruby -*-
 
-Autotest.add_hook :initialize do |at|
- at.clear_mappings
+require 'rubygems'
+require 'spec/more'
+require 'autotest/bacon'
+#require 'redgreen/autotest'
+
+class Autotest::Bacon < Autotest
+    undef make_test_cmd
+    def make_test_cmd(files_to_test)
+        args = files_to_test.keys.flatten.join(' ')
+        args = '-a' if args.empty?
+        # TODO : make regex to pass to -n using values
+        "#{ruby} -S bacon -I#{libs} -o TestUnit #{args}"
+    end
 end
 
-Autotest.add_hook :initialize do |at|
-at.add_mapping(%r%^lib/(.*)\.rb$%) { |_, m|
-    #["spec/#{m[1]}_spec.rb"]
-    #["test/#{m[1]}_test.rb"]
-    ## for both specs and tests:
-    ["spec/#{m[1]}_spec.rb","test/#{m[1]}_test.rb"]
-}
-end
+
+#Autotest.add_hook :initialize do |at|
+# at.clear_mappings
+#end
+
+#Autotest.add_hook :initialize do |at|
+#at.add_mapping(%r%^lib/(.*)\.rb$%) { |_, m|
+#    #["spec/#{m[1]}_spec.rb"]
+#    #["test/#{m[1]}_test.rb"]
+#    ## for both specs and tests:
+#    ["spec/#{m[1]}_spec.rb"]
+#}
+#end

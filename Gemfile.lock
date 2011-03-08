@@ -12,12 +12,13 @@ GEM
       rake
     ms-core (0.0.14)
       bio (>= 1.4.1)
-    ms-ident (0.0.8)
+    ms-ident (0.0.12)
       andand
       ms-core (>= 0.0.12)
       nokogiri
-    ms-msrun (0.3.3)
-      ms-core (>= 0.0.3)
+    ms-msrun (0.3.3.1)
+      andand
+      ms-core (>= 0.0.9)
       narray
       nokogiri
     ms-testdata (0.1.1)
@@ -36,7 +37,7 @@ DEPENDENCIES
   bundler (~> 1.0.0)
   jeweler (~> 1.5.2)
   ms-core (>= 0.0.14)
-  ms-ident (>= 0.0.8)
+  ms-ident (>= 0.0.12)
   ms-msrun (>= 0.3.3)
   ms-testdata (>= 0.1.1)
   rcov

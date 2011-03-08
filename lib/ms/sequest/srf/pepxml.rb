@@ -1,7 +1,10 @@
-require 'ms/sequest/srf'
 require 'ms/ident/pepxml'
-require 'ms/sequest/pepxml'
+require 'ms/ident/pepxml/spectrum_query'
+require 'ms/ident/pepxml/search_result'
+require 'ms/ident/pepxml/search_hit'
 require 'ms/msrun'
+require 'ms/sequest/srf'
+require 'ms/sequest/pepxml'
 
 class Ms::Sequest::Srf
   module Pepxml
@@ -16,13 +19,14 @@ class Ms::Sequest::Srf
       :db_seq_type => 'AA', # AA or NA
       :ms_mass_analyzer => nil,
       :outbasename => nil,
-      :retention_times => false,
       :num_hits => 1, # the top number of hits to include
       :mzxml_dir => nil, # path to the mzxml directory
       :ms_manufacturer => 'Thermo',
       # requires mzxml_dir to be set
       :retention_times => false,
       :pepxml_version => Ms::Ident::Pepxml::DEFAULT_PEPXML_VERSION,
+      # set to false to quiet warnings
+      :verbose => true, 
       ## SearchSummary options:
     }
 
@@ -35,16 +39,9 @@ class Ms::Sequest::Srf
       [/\w+/, 'UNKNOWN'],
     ]
 
-    # Generates pepxml xml.  If outdir is nil, the outdir will be derived from
-    # the raw filename.
-    #
-    # returns the full path of the output file.
-    #
-    # the filename will be based on the raw filename, unless :outbasename is
-    # specified.
-    # if outdir is :object, then the pepxml object itself is returned (and
-    # nothing is written to file)
-    def to_pepxml(outdir=nil, opts={})
+    # returns an Ms::Ident::Pepxml object.  See that object for creating an
+    # xml string or writing to file.
+    def to_pepxml(opts={})
       opt = DEFAULT_OPTIONS.merge(opts)
       srf = self
 
@@ -56,17 +53,6 @@ class Ms::Sequest::Srf
         # :ms_mass_analyzer => 'Orbitrap', ???? 
       }
       opt.merge!(hidden_opts)
-      opt[:outdir] = 
-        if outdir 
-          if outdir==:object
-            object_output = true
-            '.'
-          else
-            outdir
-          end
-        else
-          srf.header.raw_filename.split(/[\/\\]+/)[0..-2].join('/')
-        end
 
       params = srf.params
       header = srf.header
@@ -92,10 +78,12 @@ class Ms::Sequest::Srf
         db_filename = File.join(opt[:db_dir], db_filename.split(/[\/\\]+/).last)
       end
       unless File.exist?(db_filename)
-        $stderr.puts "!!! Can't find database: #{db_filename}"
-        $stderr.puts "!!! pepxml *requires* that the db path be valid"
-        $stderr.puts "!!! make sure 1) the fasta file is available on this system"
-        $stderr.puts "!!!           2) you've specified a valid directory with --db-dir (or :db_dir)"
+        msg = ["!!! WARNING !!!"]
+        msg << "!!! Can't find database: #{db_filename}"
+        msg << "!!! pepxml *requires* that the db path be valid"
+        msg << "!!! make sure 1) the fasta file is available on this system"
+        msg << "!!!           2) you've specified a valid directory with --db-dir (or :db_dir)"
+        puts msg.join("\n") if opt[:verbose]
       end
       db_filename = File.expand_path(db_filename)
 
@@ -117,9 +105,9 @@ class Ms::Sequest::Srf
           end
         end
 
-      summary_xml_filename = File.join(outdir, srf.base_name_noext + '.xml')
+      summary_xml_filename = srf.base_name_noext + '.xml'
 
-      pepxml = Pepxml.new do |msms_pipeline_analysis|
+      pepxml = Ms::Ident::Pepxml.new do |msms_pipeline_analysis|
         msms_pipeline_analysis.merge!(:summary_xml => summary_xml_filename, :pepxml_version => opt[:pepxml_version]) do |msms_run_summary|
           # prep the sample enzyme and search_summary
           msms_run_summary.merge!(
@@ -152,28 +140,28 @@ class Ms::Sequest::Srf
               precursor_neutral_mass = dta_file.mh - h_plus
 
               search_hits = out_file.hits[0,opt[:num_hits]].each_with_index.map do |pep,i|
-                (prev_aa, pure_aaseq, next_aa) = Ms::Id::Peptide.prepare_sequence(pep.sequence)
+                (prev_aa, pure_aaseq, next_aa) = Ms::Ident::Peptide.prepare_sequence(pep.sequence)
                 calc_neutral_pep_mass = pep.mh - h_plus
                 sh = Ms::Ident::Pepxml::SearchHit.new(
                   :hit_rank => i+1, 
                   :peptide => pure_aaseq, 
                   :peptide_prev_aa => prev_aa,
                   :peptide_next_aa => next_aa,
-                  :protein => prots.first.reference.split(' ')[0],
-                  :num_tot_proteins => prots.size,
+                  :protein => pep.proteins.first.reference.split(' ')[0],
+                  :num_tot_proteins => pep.proteins.size,
                   :num_matched_ions => pep.ions_matched,
                   :tot_num_ions => pep.ions_total,
                   :calc_neutral_pep_mass => calc_neutral_pep_mass, 
                   :massdiff => precursor_neutral_mass - calc_neutral_pep_mass,
                   :num_tol_term => sample_enzyme.num_tol_term(prev_aa, pure_aaseq, next_aa),
                   :num_missed_cleavages => sample_enzyme.num_missed_cleavages(pure_aaseq),
-                  :modification_info => modifications_obj.modification_info
+                  :modification_info => modifications_obj.modification_info(Ms::Ident::Peptide.split_sequence(pep.sequence)[1])
                 ) do |search_scores|
                   if opt[:deltacn_orig]
                     deltacn = pep.deltacn_orig
                     deltacnstar = nil
                   else
-                    deltacn = pep.deltcn
+                    deltacn = pep.deltacn
                     deltacn = 1.0 if deltacn == 1.1
                     deltcnstar = out_file.hits[i+1].nil? ? '1' : '0'
                   end
@@ -202,15 +190,11 @@ class Ms::Sequest::Srf
                 :search_results => [sr], 
               )
             end
+            spectrum_queries.replace(spec_queries)
           end
         end
       end
-      if object_output
-        pepxml
-      else
-        pepxml.to_xml(summary_xml_filename)
-        summary_xml_filename
-      end
+      pepxml
     end # to_pepxml
   end # Srf::Pepxml
   include Pepxml
@@ -259,7 +243,7 @@ module Ms::Sequest::Srf::Pepxml
         end
 
       srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
-      srf.to_pepxml(outdir, opt)
+      srf.to_pepxml(opt).to_xml(outdir)
     end
   end
 end

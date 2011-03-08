@@ -2,8 +2,6 @@ require 'ms/sequest/pepxml/params'
 require 'ms/sequest/pepxml/modifications'
 
 
-
-
 =begin
 
 require 'sample_enzyme'

@@ -16,17 +16,21 @@ describe 'an Ms::Ident::Pepxml object from an srf file with modifications' do
     FileUtils.rm_rf @out_path
   end
 
-  @srf_files = %w(020 040).map {|f| SEQUEST_DIR + '/opd1_2runs_2mods/sequest331/' + f + '.srf' }
+  @srf_files = %w(020).map {|f| SEQUEST_DIR + '/opd1_2runs_2mods/sequest331/' + f + '.srf' }
   @out_path = TESTFILES + '/tmp'
-  @pepxmls = @srf_files.each do |srf_file|
+  @pepxmls = @srf_files.map do |srf_file|
     Ms::Sequest::Srf.new(srf_file).to_pepxml
   end
 
   it 'exists' do
-    p @pepxmls.first
-    string = @pepxmls.first.to_xml
-    p string
-    string.matches /</
+    tags = %w(msms_pipeline_analysis msms_run_summary sample_enzyme specificity search_summary search_database enzymatic_search_constraint aminoacid_modification parameter spectrum_query search_result search_hit modification_info mod_aminoacid_mass search_score)
+    #tags = %w(msms_pipeline_analysis msms_run_summary sample_enzyme specificity search_summary search_database enzymatic_search_constraint aminoacid_modification parameter spectrum_query search_result search_hit search_score)
+    pepxml = @pepxmls.first
+    xml_string = pepxml.to_xml
+    xml_string.matches /</
+    tags.each do |tag|
+      xml_string.matches %r{<#{tag}}
+    end
   end
 end
 

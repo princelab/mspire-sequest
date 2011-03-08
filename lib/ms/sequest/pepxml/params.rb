@@ -19,7 +19,7 @@ class Ms::Sequest::Params
     hash[:cut] = cleave_at
     hash[:no_cut] = except_if_after
     hash[:sense] =
-      if se.name == "No_Enzyme"
+      if hash[:name] == "No_Enzyme"
         nil
       elsif offset == 1
         'C'

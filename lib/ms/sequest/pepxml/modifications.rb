@@ -1,3 +1,4 @@
+require 'ms/ident/pepxml/search_hit/modification_info'
 
 module Ms ; end
 module Ms::Sequest ; end
@@ -195,9 +196,10 @@ class Ms::Sequest::Pepxml::Modifications
     @term_mods = static_terminal_mods + variable_terminal_mods
   end
 
-  # given a bare peptide (no end pieces) returns a ModificationInfo object
-  # e.g. given "]PEPT*IDE", NOT 'K.PEPTIDE.R'
-  # if there are no modifications, returns nil
+  # takes a peptide sequence with modifications but no preceding or trailing
+  # amino acids.  (e.g. expects "]PEPT*IDE" but not 'K.PEPTIDE.R')
+  # returns a ModificationInfo object 
+  #  if there are no modifications, returns nil
   def modification_info(peptide)
     if @masses_by_diff_mod.size == 0
       return nil
@@ -236,8 +238,6 @@ class Ms::Sequest::Pepxml::Modifications
       nil
     end
   end
-
-
 
 
 end
