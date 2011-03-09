@@ -9,29 +9,70 @@ require 'ms/sequest/pepxml'
 class Ms::Sequest::Srf
   module Pepxml
 
+    #  A hash with the following *symbol* keys may be set:
+    #
+    # Run Info
+    # *:ms_model*:: nil
+    # *:ms_ionization*:: 'ESI'
+    # *:ms_detector*:: 'UNKNOWN'
+    # *:ms_mass_analyzer*:: nil - <i>typically extracted from the srf file and matched with <b>ModelToMsAnalyzer</b></i>
+    # *:ms_manufacturer*:: 'Thermo'
+    #
+    # Raw data
+    # *:mz_dir*:: nil - <i>path to the mz[X]ML directory, defaults to the directory the srf file is contained in.  mz[X]ML data must be available to embed retention times</i>
+    # *:raw_data*:: \['.mzML', '.mzXML'\] - <i>preferred extension for raw data</i>
+    #
+    # Database
+    # *:db_seq_type*:: 'AA' - <i>AA or NA</i>
+    # *:db_dir*:: nil - <i>the directory the fasta file used for the search is housed in. A valid pepxml file must point to a valid fasta file!</i>
+    # *:db_residue_size*:: nil - <i>An integer for the number of residues in the database.  if true, calculates the size of the fasta database.</i>
+    # *:db_name:: nil
+    # *:db_orig_database_url*:: nil
+    # *:db_release_date*:: nil
+    # *:db_release_identifier*:: nil
+    #
+    # Search Hits
+    # *:num_hits*:: 1 - <i>the top number of hits to include</i>
+    # *:retention_times*:: false - <i>include retention times in the file (requires mz_dir to be set)</i>
+    # *:deltacn_orig*:: false - <i>when true, the original SEQUEST deltacn values are used.  If false, Bioworks deltacn values are used which are derived by taking the original deltacn of the following hit.  This gives the top ranking hit an informative deltacn but makes the deltacn meaningless for other hits.</i>
+    #
+    # *:pepxml_version*:: Ms::Ident::Pepxml::DEFAULT_PEPXML_VERSION, - <i>Integer to set the pepxml version.  The converter and xml output attempts to produce xml specific to the version.</i>
+    # *:verbose*:: true - <i>set to false to quiet warnings</i>
     DEFAULT_OPTIONS = {
-      ## MSMSRunSummary options:
-      # string must be recognized in sample_enzyme.rb 
-      # or create your own SampleEnzyme object
+      :ms_model => nil,
       :ms_ionization => 'ESI',
       :ms_detector => 'UNKNOWN',
-      :raw_data => [".mzXML", '.mzML'],  # preference  
-      :db_seq_type => 'AA', # AA or NA
       :ms_mass_analyzer => nil,
-      :outbasename => nil,
-      :num_hits => 1, # the top number of hits to include
-      :mz_dir => nil, # path to the mz[X]ML directory
       :ms_manufacturer => 'Thermo',
-      # requires mz_dir to be set
+
+      :mz_dir => nil,
+      #:raw_data => [".mzXML", '.mzML'],
+      :raw_data => ['.mzML', '.mzXML'],
+
+      :db_seq_type => 'AA', 
+      :db_dir => nil, 
+      :db_residue_size => nil,
+      :db_name => nil,
+      :db_orig_database_url => nil,
+      :db_release_date => nil,
+      :db_release_identifier => nil,
+
+      :num_hits => 1,
       :retention_times => false,
+      :deltacn_orig => false,
+
       :pepxml_version => Ms::Ident::Pepxml::DEFAULT_PEPXML_VERSION,
-      # set to false to quiet warnings
-      :verbose => true, 
-      ## SearchSummary options:
+      :verbose => true,
     }
 
-    # can set :ms_mass_analyzer directly, or use a regexp to provide the
-    # ms_mass_analyzer value.
+    # An array of regexp to string pairs.  The regexps are matched against the
+    # model (srf.header.model) and the corresponding string will be used as
+    # the mass analyzer.
+    #
+    # /Orbitrap/:: 'Orbitrap'
+    # /LCQ Deca XP/:: 'Ion Trap'
+    # /LTQ/:: 'Ion Trap'
+    # /\w+/:: 'UNKNOWN'
     ModelToMsAnalyzer = [
       [/Orbitrap/, 'Orbitrap'], 
       [/LCQ Deca XP/, 'Ion Trap'],
@@ -47,21 +88,18 @@ class Ms::Sequest::Srf
 
       # with newer pepxml version these are not required anymore
       hidden_opts = {
-        :raw_data_type => "raw",
+        # format of file storing the runner up peptides (if not present in
+        # pepXML) this was made optional after version 19
         :out_data_type => "out", ## may be srf??
-        :out_data => ".tgz", ## may be srf??
-        # :ms_mass_analyzer => 'Orbitrap', ???? 
+        # runner up search hit data type extension (e.g. .tgz)
+        :out_data => ".srf",
       }
       opt.merge!(hidden_opts)
 
       params = srf.params
       header = srf.header
 
-      #bn_noext = if out_filename
-      #  
-      #             base_name_noext(srf.header.raw_filename)
-
-      opt[:ms_model] = srf.header.model
+      opt[:ms_model] ||= srf.header.model
 
       unless opt[:ms_mass_analyzer]
         ModelToMsAnalyzer.each do |regexp, val|
@@ -92,17 +130,21 @@ class Ms::Sequest::Srf
       mass_index = params.mass_index(:precursor)
       h_plus = mass_index['h+']
 
+      opt[:mz_dir] ||= srf.resident_dir
+      found_ext = opt[:raw_data].find do |raw_data|
+        Dir[File.join(opt[:mz_dir], srf.base_name_noext + raw_data)].first
+      end
+      opt[:raw_data] = [found_ext] if found_ext
+
       scan_to_ret_time = 
         if opt[:retention_times]
-          mz_file = opt[:raw_data].map do |raw_data|
-            Dir[File.join(opt[:mz_dir], srf.base_name_noext + raw_data)].first
-          end.compact.first
+          mz_file = Dir[File.join(opt[:mz_dir], srf.base_name_noext + opt[:raw_data].first)].first
           if mz_file
             Ms::Msrun.scans_to_times(mz_file) 
           else
             warn "turning retention_times off since no valid mz[X]ML file was found!!!"
             opt[:retention_times] = false
-            Hash.new
+            nil
           end
         end
 
@@ -118,7 +160,8 @@ class Ms::Sequest::Srf
             :ms_ionization => opt[:ms_ionization],
             :ms_mass_analyzer => opt[:ms_mass_analyzer],
             :ms_detector => opt[:ms_detector],
-            :raw_data => opt[:raw_data].first
+            :raw_data => opt[:raw_data].first,
+            :raw_data_type => opt[:raw_data].first,
           ) do |sample_enzyme, search_summary, spectrum_queries|
             sample_enzyme.merge!(params.sample_enzyme_hash)
             search_summary.merge!(
@@ -126,8 +169,18 @@ class Ms::Sequest::Srf
               :search_engine => 'SEQUEST',
               :precursor_mass_type => params.precursor_mass_type,
               :fragment_mass_type => params.fragment_mass_type,
+              :out_data_type => opt[:out_data_type],
+              :out_data => opt[:out_data],
             ) do |search_database, enzymatic_search_constraint, modifications_ar, parameters_hash|
-              search_database.merge!(:local_path => db_filename, :seq_type => opt[:db_seq_type]) # note seq_type == type
+              search_database.merge!(:local_path => db_filename, :seq_type => opt[:db_seq_type], :database_name => opt[:db_name], :orig_database_url => opt[:db_orig_database_url], :database_release_date => opt[:db_release_date], :database_release_identifier => opt[:db_release_identifier])
+
+              case opt[:db_residue_size]
+              when Integer
+                search_database.size_of_residues = opt[:db_residue_size]
+              when true
+                search_database.set_size_of_residues!
+              end
+
               enzymatic_search_constraint.merge!(
                 :enzyme => params.enzyme, 
                 :max_num_internal_cleavages => params.max_num_internal_cleavages,
@@ -207,22 +260,36 @@ require 'trollop'
 module Ms::Sequest::Srf::Pepxml
   def self.commandline(argv, progname=$0)
     opts = Trollop::Parser.new do
-      banner <<-EOS 
-      usage: #{progname} [OPTIONS] <file>.srf ...
-      output: <file>.xml ...
+      banner %Q{
+        usage: #{progname} [OPTIONS] <file>.srf ...
+        output: <file>.xml ...
+      }.lines.map(&:lstrip).join
 
-      options:
-      EOS
-
+      text ""
+      text "major options:"
+      opt :db_dir, "The dir holding the DB if different than in Srf. (pepxml requires a valid database path)", :type => :string
       opt :mz_dir, "directory holding mz[X]ML files (defaults to the folder holding the srf file)", :type => :string
       opt :retention_times, "include retention times (requires mz-dir)"
-      opt :db_info, "calculates extra database information"
-      opt :db_dir, "The dir holding the DB if different than in Srf. (pepxml requires a valid database path)", :type => :string
-      opt :deltacn_orig, "use original deltacn values reported.  By default, the top hit gets the next hit's original deltacn."
+      opt :deltacn_orig, "use original deltacn values created by SEQUEST.  By default, the top hit gets the next hit's original deltacn."
       opt :no_filter, "do not filter hits by peptide_mass_tolerance (per sequest params)"
       opt :num_hits, "include N top hits", :default => 1
       opt :outdirs, "list of output directories", :type => :strings
-      opt :verbose, "print warnings, etc.", :default => false
+      opt :quiet, "do not print warnings, etc."
+
+      text ""
+      text "minor options:"
+      opt :ms_model, 'mass spectrometer model', :type => :string
+      opt :ms_ionization, 'type of ms ionization', :default => 'ESI'
+      opt :ms_detector, 'ms detector', :default => 'UNKNOWN'
+      opt :ms_mass_analyzer, 'ms mass analyzer', :type => :string
+      opt :ms_manufacturer, 'ms manufacturer', :default => 'Thermo'
+      opt :raw_data, 'preferred extension for raw data', :default => '.mzXML'
+      opt :db_seq_type, "'AA' or 'NA'", :default => 'AA'
+      opt :db_residue_size, 'calculate the size of the fasta file'
+      opt :db_name, 'the database name', :type => :string
+      opt :db_orig_database_url, 'original database url', :type => :string
+      opt :db_release_date, 'database release date', :type => :string
+      opt :db_release_identifier, 'the database release identifier', :type => :string
     end
 
     opt = opts.parse argv
@@ -231,18 +298,15 @@ module Ms::Sequest::Srf::Pepxml
     Trollop.die :outdirs, "outdirs must be same size as number of input files" if opt.outdirs && opt.outdirs.size != argv.size
     opt[:filter] = !opt.delete(:no_filter)
     opt[:outdirs] ||= []
-
-    mz_dir = opt.delete(:mz_dir)
+    opt[:raw_data] = [opt[:raw_data]] if opt[:raw_data]
+    opt[:verbose] = !opt[:quiet]
 
     argv.zip(opt.delete(:outdirs)) do |srf_file,outdir|
       outdir ||= File.dirname(srf_file)
-      mz_dir ||= File.dirname(srf_file)
       srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
-      puts "HIYA"
-      new_opts =  opt.merge(:mz_dir => mz_dir)
-      p new_opts.class
-      p new_opts
-      srf.to_pepxml(new_opts).to_xml(outdir)
+      pepxml = srf.to_pepxml(opt)
+      outfile = pepxml.to_xml(outdir)
+      puts "wrote file: #{outfile}" if opt[:verbose]
     end
   end
 end
