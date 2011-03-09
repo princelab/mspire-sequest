@@ -284,7 +284,7 @@ module Ms::Sequest::Srf::Pepxml
       opt :ms_detector, 'ms detector', :default => 'UNKNOWN'
       opt :ms_mass_analyzer, 'ms mass analyzer', :type => :string
       opt :ms_manufacturer, 'ms manufacturer', :default => 'Thermo'
-      opt :raw_data, 'preferred extension for raw data', :default => '.mzXML'
+      opt :raw_data, 'preferred extension for raw data', :default => '.mzML'
       opt :db_seq_type, "'AA' or 'NA'", :default => 'AA'
       opt :db_residue_size, 'calculate the size of the fasta file'
       opt :db_name, 'the database name', :type => :string
