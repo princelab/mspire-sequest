@@ -278,6 +278,7 @@ module Ms::Sequest::Srf::Pepxml
 
       text ""
       text "minor options:"
+      opt :pepxml_version, 'schema version number to use', :default => Ms::Ident::Pepxml::DEFAULT_PEPXML_VERSION
       opt :ms_model, 'mass spectrometer model', :type => :string
       opt :ms_ionization, 'type of ms ionization', :default => 'ESI'
       opt :ms_detector, 'ms detector', :default => 'UNKNOWN'
