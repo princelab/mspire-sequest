@@ -8,13 +8,12 @@ rescue Bundler::BundlerError => e
   $stderr.puts "Run `bundle install` to install missing gems"
   exit e.status_code
 end
-require 'spec/more'
 require 'ms/testdata'
+require 'spec/more'
 
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 
-Bacon.summary_on_exit
 
 def capture_stderr
   begin
@@ -30,3 +29,4 @@ TESTFILES = File.dirname(__FILE__) + '/testfiles'
 SEQUEST_DIR = Ms::TESTDATA + '/sequest' 
 
 
+Bacon.summary_on_exit

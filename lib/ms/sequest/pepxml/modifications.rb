@@ -17,7 +17,7 @@ class Ms::Sequest::Pepxml::Modifications
   # the amino acid sequence, they are give the *differential* mass.  The
   # termini are given the special symbol as in sequest e.g. '[' => 12.22, #
   # cterminus    ']' => 14.55 # nterminus
-  attr_accessor :masses_by_diff_mod_hash
+  attr_accessor :aa_mod_to_tot_mass
   # a hash, key is [AA_one_letter_symbol.to_sym, difference.to_f]
   # values are the special_symbols
   attr_accessor :mod_symbols_hash
@@ -32,7 +32,7 @@ class Ms::Sequest::Pepxml::Modifications
   # ct is cterminal peptide (differential)
   # nt is nterminal peptide (differential)
   # the C is just cysteine
-  # will set_modifications and masses_by_diff_mod hash
+  # will set_modifications and aa_mod_to_tot_mass hash
   def initialize(params=nil, modification_symbols_string='')
     @params = params
     if @params
@@ -40,11 +40,11 @@ class Ms::Sequest::Pepxml::Modifications
     end
   end
 
-  # set the masses_by_diff_mod and mod_symbols_hash from 
+  # set the aa_mod_to_tot_mass and mod_symbols_hash from 
   def set_hashes(modification_symbols_string)
 
     @mod_symbols_hash = {}
-    @masses_by_diff_mod = {}
+    @aa_mod_to_tot_mass = {}
     if (modification_symbols_string == nil || modification_symbols_string == '')
       return nil
     end
@@ -53,7 +53,7 @@ class Ms::Sequest::Pepxml::Modifications
       if mod =~ /\(?(\w+)(.) (.[\d\.]+)\)?/
         if $1 == 'ct' || $1 == 'nt' 
           mass_diff = $3.to_f
-          @masses_by_diff_mod[$2] = mass_diff
+          @aa_mod_to_tot_mass[$2] = mass_diff
           @mod_symbols_hash[[$1.to_sym, mass_diff]] = $2.dup
           # changed from below to match tests, is this right?
           # @mod_symbols_hash[[$1, mass_diff]] = $2.dup
@@ -62,7 +62,7 @@ class Ms::Sequest::Pepxml::Modifications
           mass_diff = $3.to_f
           $1.split('').each do |aa|
             aa_as_sym = aa.to_sym
-            @masses_by_diff_mod[aa+symbol_string] = mass_diff + table[aa_as_sym]
+            @aa_mod_to_tot_mass[aa+symbol_string] = mass_diff + table[aa_as_sym]
             @mod_symbols_hash[[aa_as_sym, mass_diff]] = symbol_string
           end
         end
@@ -129,7 +129,7 @@ class Ms::Sequest::Pepxml::Modifications
 
   # 1. sets aa_mods and term_mods from a sequest params object
   # 2. sets @params
-  # 3. sets @masses_by_diff_mod
+  # 3. sets @aa_mod_to_tot_mass
   def set_modifications(params, modification_symbols_string)
     @params = params
 
@@ -200,42 +200,45 @@ class Ms::Sequest::Pepxml::Modifications
   # amino acids.  (e.g. expects "]PEPT*IDE" but not 'K.PEPTIDE.R')
   # returns a ModificationInfo object 
   #  if there are no modifications, returns nil
-  def modification_info(peptide)
-    if @masses_by_diff_mod.size == 0
-      return nil
-    end
-    hash = {}
-    hash[:modified_peptide] = peptide.dup
-    hsh = @masses_by_diff_mod  
-    table = @params.mass_index(:precursor)
-    h_plus = table['h+']  # this? or h_plus ??
-    oh = table['oh']
+  def modification_info(mod_peptide)
+    return nil if @aa_mod_to_tot_mass.size == 0 
+    mod_info = Ms::Ident::Pepxml::SearchHit::ModificationInfo.new( mod_peptide.dup )
+    mass_table = @params.mass_index(:precursor)
+
+    # TERMINI:
     ## only the termini can match a single char
-    if hsh.key? peptide[0,1]
+    if @aa_mod_to_tot_mass.key? mod_peptide[0,1]
       # AA + H + differential_mod
-      hash[:mod_nterm_mass] = table[peptide[1,1].to_sym] + h_plus + hsh[peptide[0,1]]
-      peptide = peptide[1...(peptide.size)]
+      mod_info.mod_nterm_mass = mass_table[mod_peptide[1,1].to_sym] + mass_table['h+'] + @aa_mod_to_tot_mass[mod_peptide[0,1]]
+      mod_peptide = mod_peptide[1...(mod_peptide.size)]
     end
-    if hsh.key? peptide[(peptide.size-1),1]
+    if @aa_mod_to_tot_mass.key? mod_peptide[(mod_peptide.size-1),1]
       # AA + OH + differential_mod
-      hash[:mod_cterm_mass] = table[peptide[(peptide.size-2),1].to_sym] + oh + hsh[peptide[-1,1]]
-      peptide.slice!( 0..-2 )
-      peptide = peptide[0...(peptide.size-1)]
+      mod_info.mod_cterm_mass = mass_table[mod_peptide[(mod_peptide.size-2),1].to_sym] + mass_table['oh'] + @aa_mod_to_tot_mass[mod_peptide[-1,1]]
+      mod_peptide = mod_peptide[0...(mod_peptide.size-1)]
     end
+
+    # OTHER DIFFERENTIAL MODS:
     mod_array = []
-    (0...peptide.size).each do |i|
-      if hsh.key? peptide[i,2]
-        mod_array << Ms::Ident::Pepxml::SearchHit::ModificationInfo::ModAminoacidMass.new([ i+1 , hsh[peptide[i,2]] ])
+    mod_cnt = 1
+    bare_cnt = 1
+    last_normal_aa = mod_peptide[0,1]
+    (1...mod_peptide.size).each do |i|
+      if @aa_mod_to_tot_mass.key?( last_normal_aa + mod_peptide[i,1] )
+        # we don't save the result because most amino acids will not be
+        # modified
+        mod_array << Ms::Ident::Pepxml::SearchHit::ModificationInfo::ModAminoacidMass.new(bare_cnt, @aa_mod_to_tot_mass[last_normal_aa + mod_peptide[i,1]])
+      else
+        last_normal_aa = mod_peptide[i,1]
+        bare_cnt += 1
       end
+      mod_cnt += 1
     end
-    if mod_array.size > 0
-      hash[:mod_aminoacid_masses] = mod_array
-    end
-    if hash.size > 1  # if there is more than just the modified peptide there
-      Ms::Ident::Pepxml::SearchHit::ModificationInfo.new(hash)
-      #Sequest::Pepxml::SearchHit::ModificationInfo.new(hash.values_at(:modified_peptide, :mod_aminoacid_masses, :mod_nterm_mass, :mod_cterm_mass)
-    else
+    if mod_cnt == bare_cnt
       nil
+    else
+      mod_info.mod_aminoacid_masses = mod_array if mod_array.size > 0
+      mod_info
     end
   end
 

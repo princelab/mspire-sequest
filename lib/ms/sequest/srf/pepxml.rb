@@ -20,9 +20,9 @@ class Ms::Sequest::Srf
       :ms_mass_analyzer => nil,
       :outbasename => nil,
       :num_hits => 1, # the top number of hits to include
-      :mzxml_dir => nil, # path to the mzxml directory
+      :mz_dir => nil, # path to the mz[X]ML directory
       :ms_manufacturer => 'Thermo',
-      # requires mzxml_dir to be set
+      # requires mz_dir to be set
       :retention_times => false,
       :pepxml_version => Ms::Ident::Pepxml::DEFAULT_PEPXML_VERSION,
       # set to false to quiet warnings
@@ -77,7 +77,9 @@ class Ms::Sequest::Srf
       if opt[:db_dir]
         db_filename = File.join(opt[:db_dir], db_filename.split(/[\/\\]+/).last)
       end
-      unless File.exist?(db_filename)
+      if File.exist?(db_filename)
+        db_filename = File.expand_path(db_filename)
+      else
         msg = ["!!! WARNING !!!"]
         msg << "!!! Can't find database: #{db_filename}"
         msg << "!!! pepxml *requires* that the db path be valid"
@@ -85,7 +87,6 @@ class Ms::Sequest::Srf
         msg << "!!!           2) you've specified a valid directory with --db-dir (or :db_dir)"
         puts msg.join("\n") if opt[:verbose]
       end
-      db_filename = File.expand_path(db_filename)
 
       modifications_obj = Ms::Sequest::Pepxml::Modifications.new(params, srf.header.modifications)
       mass_index = params.mass_index(:precursor)
@@ -111,7 +112,7 @@ class Ms::Sequest::Srf
         msms_pipeline_analysis.merge!(:summary_xml => summary_xml_filename, :pepxml_version => opt[:pepxml_version]) do |msms_run_summary|
           # prep the sample enzyme and search_summary
           msms_run_summary.merge!(
-            :base_name => opt[:mzxml_dir],
+            :base_name => File.join(opt[:mz_dir], srf.base_name_noext),
             :ms_manufacturer => opt[:ms_manufacturer],
             :ms_model => opt[:ms_model],
             :ms_ionization => opt[:ms_ionization],
@@ -201,49 +202,47 @@ class Ms::Sequest::Srf
 end # Srf
 
 
-require 'optparse'
+require 'trollop'
 
 module Ms::Sequest::Srf::Pepxml
- def self.commandline(argv, progname=$0)
-    opt = {
-      :filter => true,
-      :num_hits => 1,
-      :retention_times => false,
-    }
-    opts = OptionParser.new do |op|
-      op.banner = "usage: #{progname} [OPTIONS] <file>.srf ..."
-      op.separator "output: <file>.xml ..."
-      op.separator ""
-      op.separator "options:"
-      op.on("--mz-dir <String>", "directory holding mz[X]ML files") {|v| opt[:mz_dir] = v }
-      op.on("--retention-times", "include retention times (requires mz-dir)") {|v| opt[:retention_times] = true }
-      op.on("-d", "--db-info", "calculates extra database information") {|v| opt[:db_info] = v }
-      op.on("-p", "--db-dir <String>", "The dir holding the DB if different than in Srf", "[pepxml requires a valid database path]") {|v| opt[:db_dir] = v }
-      op.on("--deltacn-orig", "use original deltacn values reported", "by default, the top hit gets the next hit's original deltacn.") {|v| opt[:deltacn_orig] = v }
-      op.on("-n", "--no-filter", "by default, pephit must be within peptide_mass_tolerance",  "(defined in sequest.params) to be included.  Turns this off.") { opt[:filter] = false }
-      op.on("-h", "--num-hits <Int>", Integer, "include N top hits (default:#{opt[:num_hits]})") {|v| opt[:num_hits] = v }
-      op.on("-o", "--outdirs <first,...>", Array, "Comma list of output directories") {|v| opt[:outfiles] = v }
-    end
-    opts.parse!(argv)
+  def self.commandline(argv, progname=$0)
+    opts = Trollop::Parser.new do
+      banner <<-EOS 
+      usage: #{progname} [OPTIONS] <file>.srf ...
+      output: <file>.xml ...
 
-    if argv.size == 0
-      puts(opts) || exit
+      options:
+      EOS
+
+      opt :mz_dir, "directory holding mz[X]ML files (defaults to the folder holding the srf file)", :type => :string
+      opt :retention_times, "include retention times (requires mz-dir)"
+      opt :db_info, "calculates extra database information"
+      opt :db_dir, "The dir holding the DB if different than in Srf. (pepxml requires a valid database path)", :type => :string
+      opt :deltacn_orig, "use original deltacn values reported.  By default, the top hit gets the next hit's original deltacn."
+      opt :no_filter, "do not filter hits by peptide_mass_tolerance (per sequest params)"
+      opt :num_hits, "include N top hits", :default => 1
+      opt :outdirs, "list of output directories", :type => :strings
+      opt :verbose, "print warnings, etc.", :default => false
     end
 
-    if opt[:outdirs] && (opt[:outdirs].size != argv.size)
-      raise "if outdirs specified, outdirs must be same size as number of input files"
-    end
+    opt = opts.parse argv
+    opts.educate && exit if argv.empty?
 
-    argv.each_with_index do |srf_file,i|
-      outdir = 
-        if opt[:outdirs]
-          opt[:outdirs][i]
-        else
-          File.dirname(srf_file)
-        end
+    Trollop.die :outdirs, "outdirs must be same size as number of input files" if opt.outdirs && opt.outdirs.size != argv.size
+    opt[:filter] = !opt.delete(:no_filter)
+    opt[:outdirs] ||= []
 
+    mz_dir = opt.delete(:mz_dir)
+
+    argv.zip(opt.delete(:outdirs)) do |srf_file,outdir|
+      outdir ||= File.dirname(srf_file)
+      mz_dir ||= File.dirname(srf_file)
       srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
-      srf.to_pepxml(opt).to_xml(outdir)
+      puts "HIYA"
+      new_opts =  opt.merge(:mz_dir => mz_dir)
+      p new_opts.class
+      p new_opts
+      srf.to_pepxml(new_opts).to_xml(outdir)
     end
   end
 end

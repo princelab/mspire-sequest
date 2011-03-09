@@ -6,8 +6,8 @@ require 'ms/fasta'
 require 'digest/md5'
 
 
-require 'ms/id/peptide'
-require 'ms/id/search'
+require 'ms/ident/peptide'
+require 'ms/ident/search'
 
 module Ms
   module Sequest

@@ -23,20 +23,24 @@ describe 'Ms::Sequest::Pepxml::Modifications' do
     @params.term_diff_search_options = "14.20000 12.33000"
     mod = Ms::Sequest::Pepxml::Modifications.new(@params, mod_string)
     ## no mods
-    peptide = "PEPTIDE"
-    ok mod.modification_info(peptide).nil?
-    peptide = "]M*EC^S@IDM#M*EMSCM["
-    modinfo = mod.modification_info(peptide)
-    modinfo.modified_peptide.should == peptide
-    p modinfo
-    p modinfo.mod_aminoacid_masses
-    puts modinfo.to_xml
-    # the positions should be present and correct  for the
-    # mod_aminoacid_masses !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    fail
-    # These guys were probably using average ??
-    #modinfo.mod_nterm_mass.should.be.close 146.40054, 0.000001
-    #modinfo.mod_cterm_mass.should.be.close 160.52994, 0.000001
+    peptide_nomod = "PEPTIDE"
+    ok mod.modification_info(peptide_nomod).nil?
+    peptide_mod = "]M*EC^S@IDM#M*EMSCM["
+    modinfo = mod.modification_info(peptide_mod)
+
+    xml_string = modinfo.to_xml
+    xml_string.matches /<mod_aminoacid_mass /
+    xml_string.matches /mod_nterm_mass=/
+    xml_string.matches /mod_cterm_mass=/
+    xml_string.matches /modified_peptide=/
+
+    modinfo.mod_aminoacid_masses.size.is 5
+    mod_aa_masses = modinfo.mod_aminoacid_masses
+    # positions are verified, masses are just frozen
+    [1,3,4,7,8].zip([147.09606, 115.1429, 167.0772999, 160.19606, 147.09606], mod_aa_masses) do |pos, mass, obj|
+      obj.position.is pos
+      obj.mass.should.be.close mass, 0.0001
+    end
     # These values are just frozen and not independently verified yet
     modinfo.mod_nterm_mass.should.be.close 146.4033, 0.0001
     modinfo.mod_cterm_mass.should.be.close 160.5334, 0.0001
