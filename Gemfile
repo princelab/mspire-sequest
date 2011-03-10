@@ -5,7 +5,7 @@ source "http://rubygems.org"
 gem "ms-ident", ">= 0.0.17"
 gem "ms-core", ">= 0.0.14"
 gem "arrayclass", ">= 0.1.0"
-gem "ms-msrun", ">= 0.3.3"
+#gem "ms-msrun", ">= 0.3.3"
 gem "trollop", "~> 1.16"
 
 # Add dependencies to develop your gem here.

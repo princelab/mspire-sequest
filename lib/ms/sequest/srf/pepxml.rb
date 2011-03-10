@@ -2,7 +2,7 @@ require 'ms/ident/pepxml'
 require 'ms/ident/pepxml/spectrum_query'
 require 'ms/ident/pepxml/search_result'
 require 'ms/ident/pepxml/search_hit'
-require 'ms/msrun'
+#require 'ms/msrun'
 require 'ms/sequest/srf'
 require 'ms/sequest/pepxml'
 
@@ -138,14 +138,15 @@ class Ms::Sequest::Srf
 
       scan_to_ret_time = 
         if opt[:retention_times]
-          mz_file = Dir[File.join(opt[:mz_dir], srf.base_name_noext + opt[:raw_data].first)].first
-          if mz_file
-            Ms::Msrun.scans_to_times(mz_file) 
-          else
-            warn "turning retention_times off since no valid mz[X]ML file was found!!!"
-            opt[:retention_times] = false
-            nil
-          end
+          raise NotImplementedError, "will implement shortly"
+          #mz_file = Dir[File.join(opt[:mz_dir], srf.base_name_noext + opt[:raw_data].first)].first
+          #if mz_file
+          #  Ms::Msrun.scans_to_times(mz_file) 
+          #else
+          #  warn "turning retention_times off since no valid mz[X]ML file was found!!!"
+          #  opt[:retention_times] = false
+          #  nil
+          #end
         end
 
       summary_xml_filename = srf.base_name_noext + '.xml'

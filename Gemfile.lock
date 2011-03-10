@@ -16,12 +16,7 @@ GEM
       andand
       ms-core (>= 0.0.12)
       nokogiri
-    ms-msrun (0.3.3)
-      ms-core (>= 0.0.3)
-      narray
-      nokogiri
     ms-testdata (0.1.1)
-    narray (0.5.9.9)
     nokogiri (1.4.4)
     rake (0.8.7)
     rcov (0.9.9)
@@ -38,7 +33,6 @@ DEPENDENCIES
   jeweler (~> 1.5.2)
   ms-core (>= 0.0.14)
   ms-ident (>= 0.0.17)
-  ms-msrun (>= 0.3.3)
   ms-testdata (>= 0.1.1)
   rcov
   spec-more
