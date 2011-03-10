@@ -3,7 +3,7 @@ source "http://rubygems.org"
 # Example:
 #   gem "activesupport", ">= 2.3.5"
 gem "ms-ident", ">= 0.0.17"
-gem "ms-core", ">= 0.0.16"
+gem "ms-core", ">= 0.0.17"
 gem "arrayclass", ">= 0.1.0"
 #gem "ms-msrun", ">= 0.3.3"
 gem "trollop", "~> 1.16"
