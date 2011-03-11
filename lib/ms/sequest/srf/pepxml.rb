@@ -27,9 +27,9 @@ class Ms::Sequest::Srf
     # *:db_dir*:: nil - <i>the directory the fasta file used for the search is housed in. A valid pepxml file must point to a valid fasta file!</i>
     # *:db_residue_size*:: nil - <i>An integer for the number of residues in the database.  if true, calculates the size of the fasta database.</i>
     # *:db_name:: nil
-    # *:db_orig_database_url*:: nil
+    # *:db_orig_url*:: nil
     # *:db_release_date*:: nil
-    # *:db_release_identifier*:: nil
+    # *:db_release_id*:: nil
     #
     # Search Hits
     # *:num_hits*:: 1 - <i>the top number of hits to include</i>
@@ -53,9 +53,9 @@ class Ms::Sequest::Srf
       :db_dir => nil, 
       :db_residue_size => nil,
       :db_name => nil,
-      :db_orig_database_url => nil,
+      :db_orig_url => nil,
       :db_release_date => nil,
-      :db_release_identifier => nil,
+      :db_release_id => nil,
 
       :num_hits => 1,
       :retention_times => false,
@@ -173,7 +173,7 @@ class Ms::Sequest::Srf
               :out_data_type => opt[:out_data_type],
               :out_data => opt[:out_data],
             ) do |search_database, enzymatic_search_constraint, modifications_ar, parameters_hash|
-              search_database.merge!(:local_path => db_filename, :seq_type => opt[:db_seq_type], :database_name => opt[:db_name], :orig_database_url => opt[:db_orig_database_url], :database_release_date => opt[:db_release_date], :database_release_identifier => opt[:db_release_identifier])
+              search_database.merge!(:local_path => db_filename, :seq_type => opt[:db_seq_type], :database_name => opt[:db_name], :orig_database_url => opt[:db_orig_url], :database_release_date => opt[:db_release_date], :database_release_identifier => opt[:db_release_id])
 
               case opt[:db_residue_size]
               when Integer
@@ -218,9 +218,9 @@ class Ms::Sequest::Srf
                   else
                     deltacn = pep.deltacn
                     deltacn = 1.0 if deltacn == 1.1
-                    deltcnstar = out_file.hits[i+1].nil? ? '1' : '0'
+                    deltacnstar = out_file.hits[i+1].nil? ? '1' : '0'
                   end
-                  search_scores.merge!( :xcorr => pep.xcorr, :deltcn => deltacn, 
+                  search_scores.merge!( :xcorr => pep.xcorr, :deltacn => deltacn, 
                                        :spscore => pep.sp, :sprank => pep.rsp)
                   search_scores[:deltacnstar] = deltacnstar if deltacnstar
                 end
@@ -289,9 +289,9 @@ module Ms::Sequest::Srf::Pepxml
       opt :db_seq_type, "'AA' or 'NA'", :default => 'AA'
       opt :db_residue_size, 'calculate the size of the fasta file'
       opt :db_name, 'the database name', :type => :string
-      opt :db_orig_database_url, 'original database url', :type => :string
+      opt :db_orig_url, 'original database url', :type => :string
       opt :db_release_date, 'database release date', :type => :string
-      opt :db_release_identifier, 'the database release identifier', :type => :string
+      opt :db_release_id, 'the database release identifier', :type => :string
     end
 
     opt = opts.parse argv
