@@ -1,12 +1,4 @@
 require 'rubygems'
-require 'bundler'
-begin
-  Bundler.setup(:default, :development)
-rescue Bundler::BundlerError => e
-  $stderr.puts e.message
-  $stderr.puts "Run `bundle install` to install missing gems"
-  exit e.status_code
-end
 require 'rake'
 
 require 'jeweler'
@@ -19,7 +11,14 @@ Jeweler::Tasks.new do |gem|
   gem.email = "jtprince@gmail.com"
   gem.authors = ["John T. Prince"]
   gem.rubyforge_project = 'mspire'
-  # include dependencies in Gemfile
+  gem.add_runtime_dependency "ms-ident", ">= 0.0.20"
+  gem.add_runtime_dependency "ms-core", ">= 0.0.14"
+  gem.add_runtime_dependency "arrayclass", ">= 0.1.0"
+  gem.add_runtime_dependency "ms-msrun", ">= 0.3.4"
+  gem.add_runtime_dependency "trollop", "~> 1.16"
+  gem.add_development_dependency "jeweler", "~> 1.5.2"
+  gem.add_development_dependency "ms-testdata", ">= 0.1.1"
+  gem.add_development_dependency "spec-more", ">= 0"
 end
 Jeweler::RubygemsDotOrgTasks.new
 
