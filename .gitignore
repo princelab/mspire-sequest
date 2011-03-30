@@ -6,3 +6,4 @@ config/
 data/
 *.swp
 *.gemspec
+doc/

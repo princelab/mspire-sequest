@@ -64,7 +64,7 @@ describe 'an Ms::Ident::Pepxml object from an srf file with modifications' do
 
     mrs_node = root.child
     mrs_node.name.is 'msms_run_summary'
-    has_attributes( mrs_node, 'msManufacturer="Thermo" msModel="LCQ Deca XP" msIonization="ESI" msMassAnalyzer="Ion Trap" msDetector="UNKNOWN" raw_data=".mzXML"' )
+    has_attributes( mrs_node, 'msManufacturer="Thermo" msModel="LCQ Deca XP" msIonization="ESI" msMassAnalyzer="Ion Trap" msDetector="UNKNOWN" raw_data=".mzML"' )
     se_node = mrs_node.child
     se_node.name.is 'sample_enzyme'
     has_attributes se_node, 'name="Trypsin"'
