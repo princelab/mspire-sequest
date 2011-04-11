@@ -1,3 +1,7 @@
+== 0.1.0 / 2011-04-11
+
+* moved Arrayclass objects to Struct objects
+
 == 0.0.15 / 2010-08-25
 
 * Fixed another bug in the srf_to_sqt.rb commandline when called without an output file
