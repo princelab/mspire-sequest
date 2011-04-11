@@ -5,7 +5,6 @@ require 'set'
 require 'ms/fasta'
 require 'digest/md5'
 
-
 require 'ms/ident/peptide'
 require 'ms/ident/search'
 
