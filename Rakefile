@@ -13,7 +13,6 @@ Jeweler::Tasks.new do |gem|
   gem.rubyforge_project = 'mspire'
   gem.add_runtime_dependency "ms-ident", ">= 0.0.20"
   gem.add_runtime_dependency "ms-core", ">= 0.0.17"
-  gem.add_runtime_dependency "arrayclass", ">= 0.1.0"
   #gem.add_runtime_dependency "ms-msrun", ">= 0.3.4"
   gem.add_runtime_dependency "trollop", "~> 1.16"
   gem.add_development_dependency "jeweler", "~> 1.5.2"

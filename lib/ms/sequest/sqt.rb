@@ -115,7 +115,7 @@ module Ms
       end
 
       NEW_PROT = lambda do |_prot, _peptides|
-        Ms::Sequest::Sqt::Locus.new([_prot.locus, _prot.description, _peptides])
+        Ms::Sequest::Sqt::Locus.new(_prot.locus, _prot.description, _peptides)
       end
 
       # if the file contains the header key '/$Percolator v/' then the results
@@ -228,7 +228,7 @@ end
 
 # all are cast as expected (total_intensity is a float)
 # mh = observed mh
-Ms::Sequest::Sqt::Spectrum = Arrayclass.new(%w[first_scan last_scan charge time_to_process node mh total_intensity lowest_sp num_matched_peptides matches])
+Ms::Sequest::Sqt::Spectrum = Struct.new(* %w(first_scan last_scan charge time_to_process node mh total_intensity lowest_sp num_matched_peptides matches).map(&:to_sym) )
 
 # 0=first_scan 1=last_scan 2=charge 3=time_to_process 4=node 5=mh 6=total_intensity 7=lowest_sp 8=num_matched_peptides 9=matches
 
@@ -254,7 +254,11 @@ class Ms::Sequest::Sqt::Spectrum
                         Ms::Sequest::Sqt::Match
                       end
         match = match_klass.new.from_line( line )
-        match[10,3] = spectrum[0,3]
+        #match[10,3] = spectrum[0,3]
+        # structs cannot set multiple values at a time :(
+        match[10] = spectrum[0]
+        match[11] = spectrum[1]
+        match[12] = spectrum[2]
         match[15] = base_name
         matches << match
         peptides << match
@@ -264,7 +268,7 @@ class Ms::Sequest::Sqt::Spectrum
       when Ms::Sequest::Sqt::Locus::Leader
         line.chomp!
         key = line.split(Ms::Sequest::Sqt::Delimiter)[1]
-        locus = Ms::Sequest::Sqt::Locus.new.from_line( line )
+        locus = Ms::Sequest::Sqt::Locus.from_line( line )
         loci << locus
       end
     end
@@ -307,7 +311,7 @@ class Ms::Sequest::Sqt::Spectrum
 end
 
 # Sqt format uses only indices 0 - 9
-Ms::Sequest::Sqt::Match = Arrayclass.new(%w[rxcorr rsp mh deltacn_orig xcorr sp ions_matched ions_total sequence manual_validation_status first_scan last_scan charge deltacn aaseq base_name loci])
+Ms::Sequest::Sqt::Match = Struct.new( *%w[rxcorr rsp mh deltacn_orig xcorr sp ions_matched ions_total sequence manual_validation_status first_scan last_scan charge deltacn aaseq base_name loci].map(&:to_sym) )
 
 # 0=rxcorr 1=rsp 2=mh 3=deltacn_orig 4=xcorr 5=sp 6=ions_matched 7=ions_total 8=sequence 9=manual_validation_status 10=first_scan 11=last_scan 12=charge 13=deltacn 14=aaseq 15=base_name 16=loci
 
@@ -373,7 +377,7 @@ class Ms::Sequest::Sqt::Match::Percolator < Ms::Sequest::Sqt::Match
   end
 end
 
-Ms::Sequest::Sqt::Locus = Arrayclass.new(%w[locus description peptides])
+Ms::Sequest::Sqt::Locus = Struct.new( :locus, :description, :peptides )
 
 class Ms::Sequest::Sqt::Locus
   Leader = 'L'
@@ -381,12 +385,14 @@ class Ms::Sequest::Sqt::Locus
   def first_entry ; self[0] end
   def reference ; self[0] end
 
-  def from_line(line)
+  def initialize(locus=nil, description=nil, peptides=[])
+    super(locus, description, peptides)
+  end
+
+  # returns a new Locus object
+  def self.from_line(line)
     line.chomp!
-    ar = line.split(Ms::Sequest::Sqt::Delimiter)
-    self[0] = ar[1]
-    self[1] = ar[2]
-    self
+    self.new( *line.split(Ms::Sequest::Sqt::Delimiter) )  # fills in the first two values 
   end
 
 end

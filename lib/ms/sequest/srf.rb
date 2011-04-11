@@ -4,9 +4,6 @@ require 'set'
 require 'fileutils'
 require 'scanf'
 
-# other gems
-require 'arrayclass'
-
 # in library
 require 'ms/ident/search'
 require 'ms/ident/peptide'
@@ -169,9 +166,9 @@ class Ms::Sequest::Srf
     fh.pos = start
 
     num_files.times do |i|
-      dta_files[i] = Ms::Sequest::Srf::Dta.new.from_io(fh, unpack_35) 
+      dta_files[i] = Ms::Sequest::Srf::Dta.from_io(fh, unpack_35) 
       #p dta_files[i]
-      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35, dup_refs_gt_0)
+      out_files[i] = Ms::Sequest::Srf::Out.from_io(fh, unpack_35, dup_refs_gt_0)
       #p out_files[i]
     end
     [dta_files, out_files]
@@ -208,7 +205,7 @@ class Ms::Sequest::Srf
     end
 
     File.open(filename, 'rb') do |fh|
-      @header = Ms::Sequest::Srf::Header.new.from_io(fh)
+      @header = Ms::Sequest::Srf::Header.from_io(fh)
       @version = @header.version
 
       unpack_35 = case @version
@@ -267,11 +264,18 @@ class Ms::Sequest::Srf
     if opts[:read_pephits] && !@header.combined
       @index.each_with_index do |ind,i|
         mass_measured = @dta_files[i][0]
-        @out_files[i][0,3] = *ind
-        pep_hits = @out_files[i][6]
+        outfile = @out_files[i]
+        outfile.first_scan = ind[0]
+        outfile.last_scan = ind[1]
+        outfile.charge = ind[2]
+
+        pep_hits = @out_files[i].hits
         @peptides.push( *pep_hits )
         pep_hits.each do |pep_hit|
-          pep_hit[15,4] = @base_name, *ind
+          pep_hit[15] = @base_name
+          pep_hit[16] = ind[0]
+          pep_hit[17] = ind[1]
+          pep_hit[18] = ind[2]
           # add the deltamass
           pep_hit[12] = pep_hit[0] - mass_measured  # real - measured (deltamass)
           pep_hit[13] = 1.0e6 * pep_hit[12].abs / mass_measured ## ppm
@@ -320,7 +324,7 @@ class Ms::Sequest::Srf
     fh.pos = start
 
     header.num_dta_files.times do |i|
-      dta_files[i] = Ms::Sequest::Srf::Dta.new.from_io(fh, unpack_35) 
+      dta_files[i] = Ms::Sequest::Srf::Dta.from_io(fh, unpack_35) 
     end
     dta_files
   end
@@ -330,7 +334,7 @@ class Ms::Sequest::Srf
   def read_out_files(fh,number_files, unpack_35, dup_refs_gt_0)
     out_files = Array.new(number_files)
     header.num_dta_files.times do |i|
-      out_files[i] = Ms::Sequest::Srf::Out.new.from_io(fh, unpack_35, dup_refs_gt_0)
+      out_files[i] = Ms::Sequest::Srf::Out.from_io(fh, unpack_35, dup_refs_gt_0)
     end
     out_files
   end
@@ -390,11 +394,15 @@ class Ms::Sequest::Srf::Header
     @dta_gen.num_dta_files
   end
 
+  def self.from_io(fh)
+    self.new.from_io(fh)
+  end
+
   # sets fh to 0 and grabs the information it wants
   def from_io(fh)
     st = fh.read(4) 
     @version = '3.' + st.unpack('I').first.to_s
-    @dta_gen = Ms::Sequest::Srf::DtaGen.new.from_io(fh)
+    @dta_gen = Ms::Sequest::Srf::DtaGen.from_io(fh)
     # if the start_mass end_mass start_scan and end_scan are all zero, its a
     # combined srf file:
     @combined = [0.0, 0.0, 0, 0].zip(%w(start_mass end_mass start_scan end_scan)).all? do |one,two|
@@ -456,10 +464,14 @@ class Ms::Sequest::Srf::DtaGen
   # Integer
   attr_accessor :end_scan
 
-  # 
-  def from_io(fh)
-    fh.pos = 0 if fh.pos != 0  
-    st = fh.read(148)
+  def self.from_io(io)
+    self.new.from_io(io)
+  end
+
+  # sets self based on the io object and returns self
+  def from_io(io)
+    io.pos = 0 if io.pos != 0  
+    st = io.read(148)
     (@start_time, @start_mass, @end_mass, @num_dta_files, @group_scan, @min_group_count, @min_ion_threshold, @start_scan, @end_scan) = st.unpack('x36ex12ex4ex48Ix12IIIII')
     self
   end
@@ -468,7 +480,7 @@ end
 # total_num_possible_charge_states is not correct under 3.5 (Bioworks 3.3.1)
 # unknown is, well unknown...
 
-Ms::Sequest::Srf::Dta = Arrayclass.new( %w(mh dta_tic num_peaks charge ms_level unknown total_num_possible_charge_states peaks) )
+Ms::Sequest::Srf::Dta = Struct.new( *%w(mh dta_tic num_peaks charge ms_level unknown total_num_possible_charge_states peaks).map(&:to_sym) )
 
 class Ms::Sequest::Srf::Dta 
   # original
@@ -488,28 +500,23 @@ class Ms::Sequest::Srf::Dta
     "<Ms::Sequest::Srf::Dta @mh=#{mh} @dta_tic=#{dta_tic} @num_peaks=#{num_peaks} @charge=#{charge} @ms_level=#{ms_level} @total_num_possible_charge_states=#{total_num_possible_charge_states} @peaks=#{peaks_st} >"
   end
 
-  def from_io(fh, unpack_35)
-    if unpack_35
-      @unpack = Unpack_35
-      @read_header = 34
-      @read_spacer = 22
-    else
-      @unpack = Unpack_32
-      @read_header = 24
-      @read_spacer = 24
-    end
+  def self.from_io(fh, unpack_35)
+    (unpack, read_header, read_spacer) = 
+      if unpack_35
+        [Unpack_35, 34, 22]
+      else
+        [Unpack_32, 24, 24]
+      end
 
-    st = fh.read(@read_header)
     # get the bulk of the data in single unpack
-    self[0,7] = st.unpack(@unpack)
+    # sets the first 7 attributes
+    dta = self.new(*fh.read(read_header).unpack(unpack))
 
     # Scan numbers are given at the end in an index!
-    st2 = fh.read(@read_spacer)
+    fh.read(read_spacer) # throwaway the spacer
 
-    num_bytes_to_read = num_peaks * 8  
-    st3 = fh.read(num_bytes_to_read)
-    self[7] = st3
-    self
+    dta[7] = fh.read(dta.num_peaks * 8)  # (num_peaks * 8) is the number of bytes to read
+    dta
   end
 
   def to_dta_file_data
@@ -537,7 +544,8 @@ class Ms::Sequest::Srf::Dta
 end
 
 
-Ms::Sequest::Srf::Out = Arrayclass.new( %w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count) )
+#Ms::Sequest::Srf::Out = Struct.new( *%w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count).map(&:to_sym) )
+Ms::Sequest::Srf::Out = Struct.new( *%w(num_hits computer date_time total_inten lowest_sp num_matched_peptides db_locus_count hits first_scan last_scan charge).map(&:to_sym) )
 
 # 0=first_scan, 1=last_scan, 2=charge, 3=num_hits, 4=computer, 5=date_time, 6=hits, 7=total_inten, 8=lowest_sp, 9=num_matched_peptides, 10=db_locus_count
 
@@ -548,7 +556,7 @@ class Ms::Sequest::Srf::Out
   undef_method :inspect
   def inspect
     hits_s = 
-      if self[6]
+      if self.hits
         ", @hits(#)=#{hits.size}"
       else
         ''
@@ -556,21 +564,26 @@ class Ms::Sequest::Srf::Out
     "<Ms::Sequest::Srf::Out  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
   end
 
-  def from_io(fh, unpack_35, dup_refs_gt_0)
+  # returns an Ms::Sequest::Srf::Out object
+  def self.from_io(fh, unpack_35, dup_refs_gt_0)
     ## EMPTY out file is 96 bytes
     ## each hit is 320 bytes
     ## num_hits and charge:
     st = fh.read(96)
 
-    self[3,3] = st.unpack( (unpack_35 ? Unpack_35 : Unpack_32) )
-    self[7,4] = st.unpack('@8eex4Ix4I')
-    num_hits = self[3]
+    # num_hits computer date_time
+    initial_vals = st.unpack( (unpack_35 ? Unpack_35 : Unpack_32) )
+    # total_inten lowest_sp num_matched_peptides db_locus_count
+    initial_vals.push( *st.unpack('@8eex4Ix4I') )
+    out_obj = self.new( *initial_vals )
 
-    ar = Array.new(num_hits)
+    _num_hits = out_obj.num_hits
+
+    ar = Array.new(_num_hits)
     if ar.size > 0
       num_extra_references = 0
-      num_hits.times do |i|
-        ar[i] = Ms::Sequest::Srf::Out::Peptide.new.from_io(fh, unpack_35)
+      _num_hits.times do |i|
+        ar[i] = Ms::Sequest::Srf::Out::Peptide.from_io(fh, unpack_35)
         num_extra_references += ar[i].num_other_loci
       end
       if dup_refs_gt_0
@@ -581,12 +594,10 @@ class Ms::Sequest::Srf::Out
       ## (the same as bioworks and prophet)
       Ms::Sequest::Srf::Out::Peptide.set_deltacn_from_deltacn_orig(ar)
     end
-    self[6] = ar
-    self[4].chomp!
-    self
+    out_obj.hits = ar
+    out_obj[1].chomp! # computer
+    out_obj
   end
-
-
 
 end
 
@@ -610,7 +621,7 @@ end
 # num_other_loci is the number of other loci that the peptide matches beyond
 # the first one listed
 # srf = the srf object this scan came from
-Ms::Sequest::Srf::Out::Peptide = Arrayclass.new( %w(mh deltacn_orig sf sp xcorr id num_other_loci rsp ions_matched ions_total sequence proteins deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated) )
+Ms::Sequest::Srf::Out::Peptide = Struct.new( *%w(mh deltacn_orig sf sp xcorr id num_other_loci rsp ions_matched ions_total sequence proteins deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated).map(&:to_sym) )
 # 0=mh 1=deltacn_orig 2=sp 3=xcorr 4=id 5=num_other_loci 6=rsp 7=ions_matched 8=ions_total 9=sequence 10=proteins 11=deltamass 12=ppm 13=aaseq 14=base_name 15=first_scan 16=last_scan 17=charge 18=srf 19=deltacn 20=deltacn_orig_updated
 
 class Ms::Sequest::Srf::Out::Peptide
@@ -689,36 +700,32 @@ class Ms::Sequest::Srf::Out::Peptide
   end
   # extra_references_array is an array that grows with peptides as extra
   # references are discovered.
-  def from_io(fh, unpack_35)
-    unpack = 
-      if unpack_35 ; Unpack_35
-      else ; Unpack_32
-      end
-
+  def self.from_io(fh, unpack_35)
     ## get the first part of the info
-    st = fh.read(( unpack_35 ? Read_35 : Read_32) ) ## read all the hit data
+    st = fh.read( unpack_35 ? Read_35 : Read_32 ) ## read all the hit data
 
-    self[0,11] = st.unpack(unpack)
-
+    
+    # sets the the first 11 attributes
+    peptide = self.new( *st.unpack( unpack_35 ? Unpack_35 : Unpack_32 ) )
 
     # set deltacn_orig_updated 
-    self[21] = self[1]
+    peptide[21] = peptide[1]
 
     # we are slicing the reference to 38 chars to be the same length as
     # duplicate references
-    self[11] = [Ms::Sequest::Srf::Out::Protein.new(self[11][0,38])]
+    peptide[11] = [Ms::Sequest::Srf::Out::Protein.new(peptide[11][0,38])]
 
-    self[14] = Ms::Ident::Peptide.sequence_to_aaseq(self[10])
+    peptide[14] = Ms::Ident::Peptide.sequence_to_aaseq(peptide[10])
 
     fh.read(6) if unpack_35
 
-    self
+    peptide
   end
 
 end
 
 
-Ms::Sequest::Srf::Out::Protein = Arrayclass.new( %w(reference peptides) )
+Ms::Sequest::Srf::Out::Protein = Struct.new( *%w(reference peptides).map(&:to_sym) )
 
 class Ms::Sequest::Srf::Out::Protein
   include Ms::Ident::Protein
@@ -729,11 +736,8 @@ class Ms::Sequest::Srf::Out::Protein
 
   tmp = $VERBOSE ; $VERBOSE = nil
   def initialize(reference=nil, peptides=[])
-    #super(@@arr_size)
-    super(self.class.size)
-    #@reference = reference
-    #@peptides = peptides
-    self[0,2] = reference, peptides
+    self[0] = reference
+    self[1] = peptides
   end
   $VERBOSE = tmp
 

@@ -378,7 +378,7 @@ class Bioworks::Prot
   end
 end
 
-Bioworks::Pep = Arrayclass.new( %w(sequence mass deltamass charge xcorr deltacn sp rsp ions count tic prots base_name first_scan last_scan peptide_probability file _num_prots _first_prot aaseq) )
+Bioworks::Pep = Struct.new( *%w(sequence mass deltamass charge xcorr deltacn sp rsp ions count tic prots base_name first_scan last_scan peptide_probability file _num_prots _first_prot aaseq).map(&:to_sym) )
 # 0=sequence 1=mass 2=deltamass 3=charge 4=xcorr 5=deltacn 6=sp 7=rsp 8=ions 9=count 10=tic 11=prots 12=base_name 13=first_scan 14=last_scan 15=peptide_probability 16=file 17=_num_prots 18=_first_prot 19=aaseq
 
 class Bioworks::Pep
