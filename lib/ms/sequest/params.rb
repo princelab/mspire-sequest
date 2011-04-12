@@ -271,15 +271,17 @@ class Ms::Sequest::Params
 
   # returns the enzyme name (but no parentheses connected with the name).
   # this will likely be capitalized.
-  def enzyme
-    v = self.version
+  # the regular expression splits the name and returns the first part (or just
+  # the name if not found)
+  def enzyme(split_on=/[_\(]/)
     basic_name = 
-      if v == '3.1'
+      if self.version == '3.1'
         Bioworks31_Enzyme_Info_Array[ @opts['enzyme_number'].to_i ][0]
-      elsif v >= '3.2'
+      else    # v >= '3.2' applies to all later versions??
         @opts["enzyme_info"]
       end
-    basic_name.split('(')[0]
+    name_plus_parenthesis = basic_name.split(' ',2).first
+    name_plus_parenthesis.split(split_on,2).first
   end
 
   def max_num_internal_cleavages

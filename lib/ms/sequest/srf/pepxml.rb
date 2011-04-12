@@ -165,6 +165,7 @@ class Ms::Sequest::Srf
             :raw_data_type => opt[:raw_data].first,
           ) do |sample_enzyme, search_summary, spectrum_queries|
             sample_enzyme.merge!(params.sample_enzyme_hash)
+            sample_enzyme.name = opt[:enzyme] if opt[:enzyme]
             search_summary.merge!(
               :base_name=> srf.resident_dir + '/' + srf.base_name_noext,
               :search_engine => 'SEQUEST',
@@ -183,7 +184,7 @@ class Ms::Sequest::Srf
               end
 
               enzymatic_search_constraint.merge!(
-                :enzyme => params.enzyme, 
+                :enzyme => opt[:enzyme] ? opt[:enzyme] : params.enzyme, 
                 :max_num_internal_cleavages => params.max_num_internal_cleavages,
                 :min_number_termini => params.min_number_termini,
               )
@@ -269,6 +270,7 @@ module Ms::Sequest::Srf::Pepxml
       text ""
       text "major options:"
       opt :db_dir, "The dir holding the DB if different than in Srf. (pepxml requires a valid database path)", :type => :string
+      opt :enzyme, "overide the enzyme name embedded in the params file", :type => :string
       opt :mz_dir, "directory holding mz[X]ML files (defaults to the folder holding the srf file)", :type => :string
       opt :retention_times, "include retention times (requires mz-dir)"
       opt :deltacn_orig, "use original deltacn values created by SEQUEST.  By default, the top hit gets the next hit's original deltacn."
