@@ -2,7 +2,7 @@
 
 An {mspire}[http://mspire.rubyforge.org] library supporting SEQUEST, Bioworks, SQT and associated formats.
 
-== {API}[http://yardoc.org/docs/jtprince-ms-sequest]
+== {Current API}[http://rubydoc.info/gems/ms-sequest]
 
 == Examples
 
@@ -11,12 +11,12 @@ Provides two executables for extracting information from an Srf file (run withou
     srf_to_sqt.rb file.srf     # => file.sqt
     srf_to_search.rb file.srf  # => file.mgf  (also can make .dta files)
 
-=== Ms::Sequest::Srf
+=== MS::Sequest::Srf
 
 Can read and convert Bioworks Sequest Results Files (SRF).
 
     require 'ms/sequest/srf'
-    srf = Ms::Sequest::Srf.new("file.srf")
+    srf = MS::Sequest::Srf.new("file.srf")
 
 Conversions (see api for options):
 
@@ -28,20 +28,20 @@ Conversions (see api for options):
     srf.to_dta            # (outputs a dir)  -> file
     srf.to_dta("file.tgz", :tgz)  # on the fly tgz (requires archive-tar-minitar)
 
-Object access (see Ms::Sequest::Srf for much more):
+Object access (see MS::Sequest::Srf for much more):
 
-    srf.header         # Ms::Sequest::Srf::Header object
-    srf.params         # Ms::Sequest::Params object
-    srf.dta_files      # Ms::Sequest::Srf::DTA objects
-    srf.peps           # Ms::Sequest::Srf::Out::Pep objects
-    srf.prots          # Ms::Sequest::Srf::Out::Prot objects
+    srf.header         # MS::Sequest::Srf::Header object
+    srf.params         # MS::Sequest::Params object
+    srf.dta_files      # MS::Sequest::Srf::Dta objects
+    srf.out_files      # MS::Sequest::Srf::Out objects
+    srf.peptide_hits   # MS::Sequest::Srf::Out::Peptide objects
 
-=== Ms::Sequest::Params
+=== MS::Sequest::Params
 
 Object or hash access to any parameter in the file.  Also provides a unified interface across several versions (3.1 - 3.3)
 
     require 'ms/sequest/params'
-    params = Ms::Sequest::Params.new("sequest.params")
+    params = MS::Sequest::Params.new("sequest.params")
     params.any_existing_param    # -> some value or empty string if no value
     params['any_existing_param'] # -> some value or empty string if no value
     params.non_existent_param    # -> nil
@@ -53,25 +53,24 @@ Object or hash access to any parameter in the file.  Also provides a unified int
     params.precursor_mass_type  # => "average" | "monoisotopic"
     params.fragment_mass_type   # => "average" | "monoisotopic"
 
-=== Ms::Sequest::Sqt
+=== MS::Sequest::Sqt
 
-    sqt = Ms::Sequest::Sqt.new("file.sqt")
+    sqt = MS::Sequest::Sqt.new("file.sqt")
     sqt.header
-    sqt.spectra.each do |spectrum|      # an Ms::Sequest::Sqt::Spectrum object
-      spectrum.matches.each do |match|    # an Ms::Sequest::Sqt::Match object
-        match.loci.each do |locus|          # an Ms::Sequest::Sqt::Locus object
+    sqt.spectra.each do |spectrum|      # an MS::Sequest::Sqt::Spectrum object
+      spectrum.matches.each do |match|    # an MS::Sequest::Sqt::Match object
+        match.loci.each do |locus|          # an MS::Sequest::Sqt::Locus object
         end
       end
     end
 
-    # or more direct access to Match and Locus objects:
-    sqt.peps
-    sqt.prots
+    # or more direct access to Match objects:
+    sqt.peptide_hits
 
 Also reads Percolator SQT output files intelligently:
 
-    psqt = Ms::Sequest::Sqt.new("percolator_output.sqt")
-    psqt.peps.each do |pmatch|
+    psqt = MS::Sequest::Sqt.new("percolator_output.sqt")
+    psqt.peptide_hits.each do |pmatch|
       pmatch.percolator_score  ==  pmatch.xcorr
       pmatch.negative_q_value  ==  pmatch.sp
       pmatch.q_value           ==  -pmatch.negative_q_value 
