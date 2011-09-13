@@ -4,7 +4,7 @@ require 'ms/mass'
 
 # These are for outputting formats used in MS/MS Search engines
 
-module Ms
+module MS
   module Sequest
     class Srf
       module Search
@@ -21,7 +21,7 @@ module Ms
             else
               base_name + '.mgf'
             end
-          h_plus = Ms::Mass::MASCOT_H_PLUS
+          h_plus = MS::Mass::H_PLUS
           File.open(filename, 'wb') do |out|
             dta_files.zip(index) do |dta, i_ar|
               chrg = dta.charge
@@ -104,11 +104,11 @@ module Ms
 
     end # Srf
   end # Sequest
-end # Ms
+end # MS
 
 
 require 'optparse'
-module Ms::Sequest::Srf::Search
+module MS::Sequest::Srf::Search
   def self.commandline(argv, progname=$0)
     opt = {
       :format => 'mgf'
@@ -145,7 +145,7 @@ module Ms::Sequest::Srf::Search
             base << '.' << format
           end
         end
-      srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => false, :read_pephits => false )
+      srf = MS::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => false, :read_pephits => false )
       # options just speed up reading since we don't need .out info anyway
       case format
       when 'mgf'

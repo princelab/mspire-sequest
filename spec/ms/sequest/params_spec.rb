@@ -20,7 +20,7 @@ end
 
 shared 'sequest params' do
   before do
-    @obj = Ms::Sequest::Params.new(@file)
+    @obj = MS::Sequest::Params.new(@file)
   end
 
   it 'has a method for every parameter in the file' do

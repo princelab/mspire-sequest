@@ -1,10 +1,10 @@
 require 'ms/ident/pepxml/search_hit/modification_info'
 
-module Ms ; end
-module Ms::Sequest ; end
-class Ms::Sequest::Pepxml ; end
+module MS ; end
+module MS::Sequest ; end
+class MS::Sequest::Pepxml ; end
 
-class Ms::Sequest::Pepxml::Modifications
+class MS::Sequest::Pepxml::Modifications
   # sequest params object
   attr_accessor :params
   # array holding AAModifications 
@@ -100,7 +100,7 @@ class Ms::Sequest::Pepxml::Modifications
         :variable => 'N',
         :binary => 'Y',
       } 
-      Ms::Ident::Pepxml::AminoacidModification.new(hash)
+      MS::Ident::Pepxml::AminoacidModification.new(hash)
     end
 
     ## Create the static_terminal_mods objects
@@ -122,7 +122,7 @@ class Ms::Sequest::Pepxml::Modifications
         :description => mod[0],
       }
       hash[:protein_terminus] = protein_terminus if protein_terminus
-      Ms::Ident::Pepxml::TerminalModification.new(hash)
+      MS::Ident::Pepxml::TerminalModification.new(hash)
     end
     [static_mods, static_terminal_mods]
   end
@@ -160,7 +160,7 @@ class Ms::Sequest::Pepxml::Modifications
           :binary => 'N',
           :symbol => @mod_symbols_hash[[aa.to_sym, mod[1]]],
         }
-        mod_objects << Ms::Ident::Pepxml::AminoacidModification.new(hash)
+        mod_objects << MS::Ident::Pepxml::AminoacidModification.new(hash)
       end
     end
 
@@ -186,7 +186,7 @@ class Ms::Sequest::Pepxml::Modifications
         :variable => 'Y',
         :symbol => symb,
       }
-      Ms::Ident::Pepxml::TerminalModification.new(hash)
+      MS::Ident::Pepxml::TerminalModification.new(hash)
     end
 
     #########################
@@ -202,7 +202,7 @@ class Ms::Sequest::Pepxml::Modifications
   #  if there are no modifications, returns nil
   def modification_info(mod_peptide)
     return nil if @aa_mod_to_tot_mass.size == 0 
-    mod_info = Ms::Ident::Pepxml::SearchHit::ModificationInfo.new( mod_peptide.dup )
+    mod_info = MS::Ident::Pepxml::SearchHit::ModificationInfo.new( mod_peptide.dup )
     mass_table = @params.mass_index(:precursor)
 
     # TERMINI:
@@ -227,7 +227,7 @@ class Ms::Sequest::Pepxml::Modifications
       if @aa_mod_to_tot_mass.key?( last_normal_aa + mod_peptide[i,1] )
         # we don't save the result because most amino acids will not be
         # modified
-        mod_array << Ms::Ident::Pepxml::SearchHit::ModificationInfo::ModAminoacidMass.new(bare_cnt, @aa_mod_to_tot_mass[last_normal_aa + mod_peptide[i,1]])
+        mod_array << MS::Ident::Pepxml::SearchHit::ModificationInfo::ModAminoacidMass.new(bare_cnt, @aa_mod_to_tot_mass[last_normal_aa + mod_peptide[i,1]])
       else
         last_normal_aa = mod_peptide[i,1]
         bare_cnt += 1

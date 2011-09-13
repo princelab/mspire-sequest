@@ -1,11 +1,9 @@
-
-require 'ms/calc'
 require 'ms/sequest'
 require 'ms/sequest/srf'
 require 'ms/sequest/sqt'
 
 
-module Ms
+module MS
   module Sequest
     class Srf
       
@@ -81,7 +79,7 @@ module Ms
 
           hh =  {
             'SQTGenerator' => "mspire: ms-sequest",
-            'SQTGeneratorVersion' => Ms::Sequest::VERSION,
+            'SQTGeneratorVersion' => MS::Sequest::VERSION,
             'Database' => db_filename_in_sqt,
             'FragmentMasses' => fmt,
             'PrecursorMasses' => pmt,
@@ -96,7 +94,7 @@ module Ms
 
           if opt[:db_info]
             if File.exist?(db_filename)
-              reply = Ms::Sequest::Sqt.db_info(db_filename)
+              reply = MS::Sequest::Sqt.db_info(db_filename)
               %w(DBSeqLength DBLocusCount DBMD5Sum).zip(reply) do |label,val|
                 hh[label] = val
               end
@@ -140,9 +138,9 @@ module Ms
               out_file_total_inten = out_file.total_inten
               out_file_lowest_sp = out_file.lowest_sp
               if opt[:round]
-                dta_file_mh = Ms::Calc.round(dta_file_mh, mh_dp)
-                out_file_total_inten = Ms::Calc.round(out_file_total_inten, tic_dp)
-                out_file_lowest_sp = Ms::Calc.round(out_file_lowest_sp, sp_dp)
+                dta_file_mh = dta_file_mh.round(mh_dp)
+                out_file_total_inten = out_file_total_inten.round(tic_dp)
+                out_file_lowest_sp = out_file_lowest_sp.round(sp_dp)
               end
 
               out.puts ['S', out_file.first_scan, out_file.last_scan, out_file.charge, time_to_process, out_file.computer, dta_file_mh, out_file_total_inten, out_file_lowest_sp, out_file.num_matched_peptides].join("\t")
@@ -152,10 +150,10 @@ module Ms
                 hit_xcorr = hit.xcorr
                 hit_sp = hit.sp
                 if opt[:round]
-                  hit_mh = Ms::Calc.round(hit_mh, mh_dp)
-                  hit_deltacn_orig_updated = Ms::Calc.round(hit_deltacn_orig_updated, dcn_dp)
-                  hit_xcorr = Ms::Calc.round(hit_xcorr, xcorr_dp)
-                  hit_sp = Ms::Calc.round(hit_sp, sp_dp)
+                  hit_mh = hit_mh.round(mh_dp)
+                  hit_deltacn_orig_updated = hit_deltacn_orig_updated.round(dcn_dp)
+                  hit_xcorr = hit_xcorr.round(xcorr_dp)
+                  hit_sp = hit_sp.round(sp_dp)
                 end
                 # note that the rank is determined by the order..
                 out.puts ['M', index+1, hit.rsp, hit_mh, hit_deltacn_orig_updated, hit_xcorr, hit_sp, hit.ions_matched, hit.ions_total, hit.sequence, manual_validation_status].join("\t")
@@ -170,12 +168,12 @@ module Ms
       include Sqt
     end # Srf
   end # Sequest
-end # Ms
+end # MS
 
 
 require 'optparse'
 
-module Ms::Sequest::Srf::Sqt
+module MS::Sequest::Srf::Sqt
   def self.commandline(argv, progname=$0)
     opt = {
       :filter => true
@@ -211,7 +209,7 @@ module Ms::Sequest::Srf::Sqt
           base + '.sqt'
         end
 
-      srf = Ms::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
+      srf = MS::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
       srf.to_sqt(outfile, :db_info => opt[:db_info], :new_db_path => opt[:new_db_path], :update_db_path => opt[:db_update], :round => opt[:round])
     end
   end

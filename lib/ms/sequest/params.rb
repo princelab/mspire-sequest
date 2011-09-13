@@ -3,13 +3,13 @@ require 'ms/mass/aa'
 # In the future, this guy should accept any version of bioworks params file
 # and spit out any param queried.
 
-module Ms ; end
-module Ms::Sequest ; end
+module MS ; end
+module MS::Sequest ; end
 
 # 1) provides a reader and simple parameter lookup for SEQUEST params files
 # supporting Bioworks 3.1-3.3.1.  
-#     params = Ms::Sequest::Params.new("sequest.params") # filename by default
-#     params = Ms::Sequest::Params.new.parse_io(some_io_object)
+#     params = MS::Sequest::Params.new("sequest.params") # filename by default
+#     params = MS::Sequest::Params.new.parse_io(some_io_object)
 #
 #     params.some_parameter  # => any parameter defined has a method
 #     params.nonexistent_parameter # => nil 
@@ -29,7 +29,7 @@ module Ms::Sequest ; end
 #     params.max_num_internal_cleavages  # == max_num_internal_cleavage_sites
 #     params.fragment_ion_tol     # => fragment_ion_tolerance
 #     
-class Ms::Sequest::Params
+class MS::Sequest::Params
 
   Bioworks31_Enzyme_Info_Array = [
     ['No_Enzyme', 0, '-', '-'],   # 0
@@ -234,7 +234,7 @@ class Ms::Sequest::Params
     @opts["first_database_name"]
   end
 
-  # returns the appropriate aminoacid mass lookup table from Ms::Mass::AA
+  # returns the appropriate aminoacid mass lookup table from MS::Mass::AA
   # based_on may be :precursor or :fragment
   def mass_index(based_on=:precursor)
     reply = case based_on
@@ -243,9 +243,9 @@ class Ms::Sequest::Params
             end
     case reply
     when 'average'
-      Ms::Mass::AA::AVG
+      MS::Mass::AA::AVG
     when 'monoisotopic'
-      Ms::Mass::AA::MONO
+      MS::Mass::AA::MONO
     end
   end
 
