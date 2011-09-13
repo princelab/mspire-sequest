@@ -16,7 +16,7 @@ def capture_stderr
 end
 
 TESTFILES = File.dirname(__FILE__) + '/testfiles'
-SEQUEST_DIR = Ms::TESTDATA + '/sequest' 
+SEQUEST_DIR = MS::TESTDATA + '/sequest' 
 
 
 Bacon.summary_on_exit

@@ -46,7 +46,7 @@ END
 
 
 module SPEC
-  Srf_file = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf' 
+  Srf_file = MS::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf' 
   TMPDIR = TESTFILES + '/tmp'
   Srf_output = TMPDIR + '/000.sqt.tmp'
 end
@@ -166,11 +166,11 @@ describe "programmatic interface srf to sqt" do
     FileUtils.rm_rf(SPEC::TMPDIR)
   end
 
-  @srf = Ms::Sequest::Srf.new(SPEC::Srf_file)
+  @srf = MS::Sequest::Srf.new(SPEC::Srf_file)
 
   @basic_conversion = lambda { @srf.to_sqt(SPEC::Srf_output) }
-  @with_new_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :db_info => true, :new_db_path => Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') }
-  @update_the_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :new_db_path => Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33', :update_db_path => true) }
+  @with_new_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :db_info => true, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') }
+  @update_the_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33', :update_db_path => true) }
 
   before do
     @output = SPEC::Srf_output
@@ -209,13 +209,13 @@ describe "command-line interface srf to sqt" do
 
 
   def commandline_lambda(string)
-    lambda { Ms::Sequest::Srf::Sqt.commandline( string.split(/\s+/) ) }
+    lambda { MS::Sequest::Srf::Sqt.commandline( string.split(/\s+/) ) }
   end
 
   base_cmd = "#{SPEC::Srf_file} -o #{SPEC::Srf_output}"
   @basic_conversion = commandline_lambda(base_cmd)
-  @with_new_db_path = commandline_lambda(base_cmd + " --db-info --db-path #{Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'}")
-  @update_the_db_path = commandline_lambda(base_cmd + " --db-path #{Ms::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'} --db-update" )
+  @with_new_db_path = commandline_lambda(base_cmd + " --db-info --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'}")
+  @update_the_db_path = commandline_lambda(base_cmd + " --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'} --db-update" )
 
   behaves_like "an srf to sqt converter"
 end

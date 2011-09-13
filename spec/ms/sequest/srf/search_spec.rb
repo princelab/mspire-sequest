@@ -12,7 +12,7 @@ class SRF_TO_MGF_HELPER
     :last_line => 'END IONS',
   }
   LAST_MSMS = { 
-    :first_lines => ['BEGIN IONS', 'TITLE=000.3748.3748.3.dta', 'CHARGE=3+', 'PEPMASS=433.56494098625'],
+    :first_lines => ['BEGIN IONS', 'TITLE=000.3748.3748.3.dta', 'CHARGE=3+', 'PEPMASS=433.56494129743004'],
     :first_two_ion_lines => ['143.466918945312 2110.0', '151.173095703125 4134.0'],
     :last_two_ion_lines => ['482.678771972656 3357.0', '610.4111328125 8968.0'],
     :last_line => 'END IONS',
@@ -33,7 +33,7 @@ class SRF_TO_DTA_HELPER
   }
 end
 
-Srf_file = Ms::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf'
+Srf_file = MS::TESTDATA + '/sequest/opd1_static_diff_mods/000.srf'
 TMPDIR = TESTFILES + '/tmp'
 Mgf_output = TMPDIR + '/000.mgf.tmp'
 Dta_output = TMPDIR + '/000.dta.tmp'
@@ -61,7 +61,7 @@ shared 'an srf to ms2 search converter' do
     key[:first_lines][0,3].enums lines[0,3]
     (exp_pair, act_pair) = [key[:first_lines][3], lines[3]].map {|line| line.split('=') }
     exp_pair.first.is act_pair.first
-    exp_pair.last.to_f.should.be.close act_pair.last.to_f, 0.00000000001
+    exp_pair.last.to_f.should.be.close act_pair.last.to_f, 0.0000001
 
     (key[:first_two_ion_lines] + key[:last_two_ion_lines]).zip(lines[4,2] + lines[-3,2]).each do |exp_line,act_line|
       assert_ion_line_close(exp_line, act_line, 0.00000001)
@@ -103,7 +103,7 @@ describe 'converting an srf to ms2 search format: programmatic' do
     FileUtils.rmtree(TMPDIR)
   end
 
-  @srf = Ms::Sequest::Srf.new(Srf_file)
+  @srf = MS::Sequest::Srf.new(Srf_file)
 
   @convert_to_mgf = lambda { @srf.to_mgf(Mgf_output) }
   @convert_to_dta = lambda { @srf.to_dta(Dta_output) }
@@ -121,7 +121,7 @@ describe 'converting an srf to ms2 search format: commandline' do
   end
 
   def commandline_lambda(string)
-    lambda { Ms::Sequest::Srf::Search.commandline(string.split(/\s+/)) }
+    lambda { MS::Sequest::Srf::Search.commandline(string.split(/\s+/)) }
   end
 
   @convert_to_mgf = commandline_lambda "#{Srf_file} -o #{Mgf_output}"

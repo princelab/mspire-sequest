@@ -7,7 +7,7 @@ describe 'reading a small sqt file' do
 
   before do
     file = TESTFILES + '/small.sqt'
-    @sqt = Ms::Sequest::Sqt.new(file)
+    @sqt = MS::Sequest::Sqt.new(file)
   end
 
   it 'can access header entries like a hash' do
@@ -23,7 +23,7 @@ describe 'reading a small sqt file' do
     header.database.is HeaderHash['Database']
     # all working:
     HeaderHash.each do |k,v|
-      header.send(Ms::Sequest::Sqt::Header::KeysToAtts[k]).is v
+      header.send(MS::Sequest::Sqt::Header::KeysToAtts[k]).is v
     end
 
   end
@@ -49,29 +49,3 @@ describe 'reading a small sqt file' do
 
 end
 
-#class SqtGroup_ReadingFiles < MiniTest::Spec
-  #before(:each) do
-    #file1 = TESTFILES + '/small.sqt'
-    #file2 = TESTFILES + '/small2.sqt'
-    #@sqg = Ms::Sequest::SqtGroup.new([file1, file2])
-  #end
-
-  #it 'has peptide hits' do
-    #peps = @sqg.peps
-    #peps.size.is 86
-    ## first hit in 020
-    #peps.first.sequence.is 'R.Y#RLGGS#T#K.K'
-    #peps.first.base_name.is 'small'
-    ## last hit in 040
-    #peps.last.sequence.is 'K.T#IS#S#QK.K'
-    #peps.last.base_name.is 'small2'
-  #end
-
-  #it 'has prots' do
-    ### FROZEN:
-    #@sqg.prots.size.is 72
-    #sorted = @sqg.prots.sort_by {|v| v.reference }
-    #sorted.first.reference.is 'gi|16127996|ref|NP_414543.1|'
-    #sorted.first.peps.size.is 33
-  #end
-#end

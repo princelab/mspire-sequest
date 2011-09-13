@@ -91,8 +91,8 @@ To_run = {
 describe 'reading srf with duplicate refs v3.2' do
 
   info = To_run['3.2']
-  @file = Ms::TESTDATA + '/sequest' + info[:file]
-  @srf_obj = Ms::Sequest::Srf.new(@file)
+  @file = MS::TESTDATA + '/sequest' + info[:file]
+  @srf_obj = MS::Sequest::Srf.new(@file)
   Expected_hash_keys.each do |c|
     instance_variable_set("@#{c}", info[:hash][c.to_sym])
   end
@@ -102,8 +102,8 @@ end
 
 describe 'reading srf with duplicate refs v3.3' do
   info = To_run['3.3']
-  @file = Ms::TESTDATA + '/sequest' + info[:file]
-  @srf_obj = Ms::Sequest::Srf.new(@file)
+  @file = MS::TESTDATA + '/sequest' + info[:file]
+  @srf_obj = MS::Sequest::Srf.new(@file)
   Expected_hash_keys.each do |c|
     instance_variable_set("@#{c}", info[:hash][c.to_sym])
   end
@@ -113,8 +113,8 @@ end
 
 describe 'reading srf with duplicate refs v3.3.1' do
   info = To_run['3.3.1']
-  @file = Ms::TESTDATA + '/sequest' + info[:file]
-  @srf_obj = Ms::Sequest::Srf.new(@file)
+  @file = MS::TESTDATA + '/sequest' + info[:file]
+  @srf_obj = MS::Sequest::Srf.new(@file)
   Expected_hash_keys.each do |c|
     instance_variable_set("@#{c}", info[:hash][c.to_sym])
   end
@@ -126,7 +126,7 @@ end
 #  it 'reads a file from an aborted run w/o failing, but gives warning msg' do
 #    srf_file = TESTFILES + '/corrupted_900.srf'
 #    message = capture_stderr do
-#      srf_obj = Ms::Sequest::Srf.new(srf_file) 
+#      srf_obj = MS::Sequest::Srf.new(srf_file) 
 #      srf_obj.base_name.is '900'
 #      srf_obj.params.is nil
 #      header = srf_obj.header
