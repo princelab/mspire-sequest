@@ -1,5 +1,3 @@
-
-require 'arrayclass'
 require 'set'
 
 require 'ms/fasta'

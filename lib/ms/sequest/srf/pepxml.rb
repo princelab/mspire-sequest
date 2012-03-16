@@ -4,7 +4,7 @@ require 'ms/ident/pepxml/search_result'
 require 'ms/ident/pepxml/search_hit'
 #require 'ms/msrun'
 require 'ms/sequest/srf'
-require 'ms/sequest/pepxml'
+#require 'ms/sequest/pepxml'
 
 class MS::Sequest::Srf
   module Pepxml
