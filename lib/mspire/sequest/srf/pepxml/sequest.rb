@@ -1,7 +1,7 @@
-module MS ; end
-module MS::Ident ; end
+module Mspire ; end
+module Mspire::Ident ; end
 
-class MS::Ident::Pepxml 
+class Mspire::Ident::Pepxml 
   class SearchHit
     Sequest = Struct.new(:xcorr, :deltacn, :deltacnstar, :spscore, :sprank) do
 

@@ -11,7 +11,7 @@ Jeweler::Tasks.new do |gem|
   gem.email = "jtprince@gmail.com"
   gem.authors = ["John T. Prince"]
   gem.rubyforge_project = 'mspire'
-  gem.add_runtime_dependency "mspire", "~> 0.7.0"
+  gem.add_runtime_dependency "mspire", "~> 0.7.2"
   #gem.add_runtime_dependency "ms-core", ">= 0.0.17"
   #gem.add_runtime_dependency "ms-msrun", ">= 0.3.4"
   gem.add_runtime_dependency "trollop", "~> 1.16"

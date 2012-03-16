@@ -1,6 +1,6 @@
 require File.expand_path( File.dirname(__FILE__) + '/../../spec_helper' )
 
-require 'ms/sequest/params'
+require 'mspire/sequest/params'
 
 # returns a hash of all params
 def simple_parse(filename)
@@ -20,7 +20,7 @@ end
 
 shared 'sequest params' do
   before do
-    @obj = MS::Sequest::Params.new(@file)
+    @obj = Mspire::Sequest::Params.new(@file)
   end
 
   it 'has a method for every parameter in the file' do

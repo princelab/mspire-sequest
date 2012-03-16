@@ -1,9 +1,9 @@
-require 'ms/sequest'
-require 'ms/sequest/srf'
-require 'ms/sequest/sqt'
+require 'mspire/sequest'
+require 'mspire/sequest/srf'
+require 'mspire/sequest/sqt'
 
 
-module MS
+module Mspire
   module Sequest
     class Srf
       
@@ -79,7 +79,7 @@ module MS
 
           hh =  {
             'SQTGenerator' => "mspire: ms-sequest",
-            'SQTGeneratorVersion' => MS::Sequest::VERSION,
+            'SQTGeneratorVersion' => Mspire::Sequest::VERSION,
             'Database' => db_filename_in_sqt,
             'FragmentMasses' => fmt,
             'PrecursorMasses' => pmt,
@@ -94,7 +94,7 @@ module MS
 
           if opt[:db_info]
             if File.exist?(db_filename)
-              reply = MS::Sequest::Sqt.db_info(db_filename)
+              reply = Mspire::Sequest::Sqt.db_info(db_filename)
               %w(DBSeqLength DBLocusCount DBMD5Sum).zip(reply) do |label,val|
                 hh[label] = val
               end
@@ -173,7 +173,7 @@ end # MS
 
 require 'optparse'
 
-module MS::Sequest::Srf::Sqt
+module Mspire::Sequest::Srf::Sqt
   def self.commandline(argv, progname=$0)
     opt = {
       :filter => true
@@ -209,7 +209,7 @@ module MS::Sequest::Srf::Sqt
           base + '.sqt'
         end
 
-      srf = MS::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
+      srf = Mspire::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
       srf.to_sqt(outfile, :db_info => opt[:db_info], :new_db_path => opt[:new_db_path], :update_db_path => opt[:db_update], :round => opt[:round])
     end
   end

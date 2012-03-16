@@ -1,12 +1,12 @@
-require 'ms/ident/pepxml'
-require 'ms/ident/pepxml/spectrum_query'
-require 'ms/ident/pepxml/search_result'
-require 'ms/ident/pepxml/search_hit'
-#require 'ms/msrun'
-require 'ms/sequest/srf'
-#require 'ms/sequest/pepxml'
+require 'mspire/ident/pepxml'
+require 'mspire/ident/pepxml/spectrum_query'
+require 'mspire/ident/pepxml/search_result'
+require 'mspire/ident/pepxml/search_hit'
+#require 'mspire/msrun'
+require 'mspire/sequest/srf'
+#require 'mspire/sequest/pepxml'
 
-class MS::Sequest::Srf
+class Mspire::Sequest::Srf
   module Pepxml
 
     #  A hash with the following *symbol* keys may be set:
@@ -36,7 +36,7 @@ class MS::Sequest::Srf
     # *:retention_times*:: false - <i>include retention times in the file (requires mz_dir to be set)</i>
     # *:deltacn_orig*:: false - <i>when true, the original SEQUEST deltacn values are used.  If false, Bioworks deltacn values are used which are derived by taking the original deltacn of the following hit.  This gives the top ranking hit an informative deltacn but makes the deltacn meaningless for other hits.</i>
     #
-    # *:pepxml_version*:: MS::Ident::Pepxml::DEFAULT_PEPXML_VERSION, - <i>Integer to set the pepxml version.  The converter and xml output attempts to produce xml specific to the version.</i>
+    # *:pepxml_version*:: Mspire::Ident::Pepxml::DEFAULT_PEPXML_VERSION, - <i>Integer to set the pepxml version.  The converter and xml output attempts to produce xml specific to the version.</i>
     # *:verbose*:: true - <i>set to false to quiet warnings</i>
     DEFAULT_OPTIONS = {
       :ms_model => nil,
@@ -61,7 +61,7 @@ class MS::Sequest::Srf
       :retention_times => false,
       :deltacn_orig => false,
 
-      :pepxml_version => MS::Ident::Pepxml::DEFAULT_PEPXML_VERSION,
+      :pepxml_version => Mspire::Ident::Pepxml::DEFAULT_PEPXML_VERSION,
       :verbose => true,
     }
 
@@ -80,7 +80,7 @@ class MS::Sequest::Srf
       [/\w+/, 'UNKNOWN'],
     ]
 
-    # returns an MS::Ident::Pepxml object.  See that object for creating an
+    # returns an Mspire::Ident::Pepxml object.  See that object for creating an
     # xml string or writing to file.
     def to_pepxml(opts={})
       opt = DEFAULT_OPTIONS.merge(opts)
@@ -126,7 +126,7 @@ class MS::Sequest::Srf
         puts msg.join("\n") if opt[:verbose]
       end
 
-      modifications_obj = MS::Sequest::Pepxml::Modifications.new(params, srf.header.modifications)
+      modifications_obj = Mspire::Sequest::Pepxml::Modifications.new(params, srf.header.modifications)
       mass_index = params.mass_index(:precursor)
       h_plus = mass_index['h+']
 
@@ -141,7 +141,7 @@ class MS::Sequest::Srf
           raise NotImplementedError, "will implement shortly"
           #mz_file = Dir[File.join(opt[:mz_dir], srf.base_name_noext + opt[:raw_data].first)].first
           #if mz_file
-          #  MS::Msrun.scans_to_times(mz_file) 
+          #  Mspire::Msrun.scans_to_times(mz_file) 
           #else
           #  warn "turning retention_times off since no valid mz[X]ML file was found!!!"
           #  opt[:retention_times] = false
@@ -151,7 +151,7 @@ class MS::Sequest::Srf
 
       summary_xml_filename = srf.base_name_noext + '.xml'
 
-      pepxml = MS::Ident::Pepxml.new do |msms_pipeline_analysis|
+      pepxml = Mspire::Ident::Pepxml.new do |msms_pipeline_analysis|
         msms_pipeline_analysis.merge!(:summary_xml => summary_xml_filename, :pepxml_version => opt[:pepxml_version]) do |msms_run_summary|
           # prep the sample enzyme and search_summary
           msms_run_summary.merge!(
@@ -196,9 +196,9 @@ class MS::Sequest::Srf
               precursor_neutral_mass = dta_file.mh - h_plus
 
               search_hits = out_file.hits[0,opt[:num_hits]].each_with_index.map do |pep,i|
-                (prev_aa, pure_aaseq, next_aa) = MS::Ident::Peptide.prepare_sequence(pep.sequence)
+                (prev_aa, pure_aaseq, next_aa) = Mspire::Ident::Peptide.prepare_sequence(pep.sequence)
                 calc_neutral_pep_mass = pep.mh - h_plus
-                sh = MS::Ident::Pepxml::SearchHit.new(
+                sh = Mspire::Ident::Pepxml::SearchHit.new(
                   :hit_rank => i+1, 
                   :peptide => pure_aaseq, 
                   :peptide_prev_aa => prev_aa,
@@ -211,7 +211,7 @@ class MS::Sequest::Srf
                   :massdiff => precursor_neutral_mass - calc_neutral_pep_mass,
                   :num_tol_term => sample_enzyme.num_tol_term(prev_aa, pure_aaseq, next_aa),
                   :num_missed_cleavages => sample_enzyme.num_missed_cleavages(pure_aaseq),
-                  :modification_info => modifications_obj.modification_info(MS::Ident::Peptide.split_sequence(pep.sequence)[1])
+                  :modification_info => modifications_obj.modification_info(Mspire::Ident::Peptide.split_sequence(pep.sequence)[1])
                 ) do |search_scores|
                   if opt[:deltacn_orig]
                     deltacn = pep.deltacn_orig
@@ -227,7 +227,7 @@ class MS::Sequest::Srf
                 end
               end
 
-              sr = MS::Ident::Pepxml::SearchResult.new(:search_hits => search_hits)
+              sr = Mspire::Ident::Pepxml::SearchResult.new(:search_hits => search_hits)
 
               ret_time = 
                 if opt[:retention_times]
@@ -239,7 +239,7 @@ class MS::Sequest::Srf
                     times.inject(&:+) / times.size.to_f
                   end
                 end
-              MS::Ident::Pepxml::SpectrumQuery.new(
+              Mspire::Ident::Pepxml::SpectrumQuery.new(
                 :spectrum  => [srf.base_name_noext, *i_ar].join('.'), :start_scan => i_ar[0], :end_scan => i_ar[1], 
                 :precursor_neutral_mass => dta_file.mh - h_plus, :assumed_charge => i_ar[2],
                 :retention_time_sec => ret_time,  
@@ -259,7 +259,7 @@ end # Srf
 
 require 'trollop'
 
-module MS::Sequest::Srf::Pepxml
+module Mspire::Sequest::Srf::Pepxml
   def self.commandline(argv, progname=$0)
     opts = Trollop::Parser.new do
       banner %Q{
@@ -281,7 +281,7 @@ module MS::Sequest::Srf::Pepxml
 
       text ""
       text "minor options:"
-      opt :pepxml_version, 'schema version number to use', :default => MS::Ident::Pepxml::DEFAULT_PEPXML_VERSION
+      opt :pepxml_version, 'schema version number to use', :default => Mspire::Ident::Pepxml::DEFAULT_PEPXML_VERSION
       opt :ms_model, 'mass spectrometer model', :type => :string
       opt :ms_ionization, 'type of ms ionization', :default => 'ESI'
       opt :ms_detector, 'ms detector', :default => 'UNKNOWN'
@@ -307,7 +307,7 @@ module MS::Sequest::Srf::Pepxml
 
     argv.zip(opt.delete(:outdirs)) do |srf_file,outdir|
       outdir ||= File.dirname(srf_file)
-      srf = MS::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
+      srf = Mspire::Sequest::Srf.new(srf_file, :link_protein_hits => false, :filter_by_precursor_mass_tolerance => opt.delete(:filter))
       pepxml = srf.to_pepxml(opt)
       outfile = pepxml.to_xml(outdir)
       puts "wrote file: #{outfile}" if opt[:verbose]

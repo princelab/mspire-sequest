@@ -1,15 +1,15 @@
-require 'ms/mass/aa'
+require 'mspire/mass/aa'
 
 # In the future, this guy should accept any version of bioworks params file
 # and spit out any param queried.
 
-module MS ; end
-module MS::Sequest ; end
+module Mspire ; end
+module Mspire::Sequest ; end
 
 # 1) provides a reader and simple parameter lookup for SEQUEST params files
 # supporting Bioworks 3.1-3.3.1.  
-#     params = MS::Sequest::Params.new("sequest.params") # filename by default
-#     params = MS::Sequest::Params.new.parse_io(some_io_object)
+#     params = Mspire::Sequest::Params.new("sequest.params") # filename by default
+#     params = Mspire::Sequest::Params.new.parse_io(some_io_object)
 #
 #     params.some_parameter  # => any parameter defined has a method
 #     params.nonexistent_parameter # => nil 
@@ -29,7 +29,7 @@ module MS::Sequest ; end
 #     params.max_num_internal_cleavages  # == max_num_internal_cleavage_sites
 #     params.fragment_ion_tol     # => fragment_ion_tolerance
 #     
-class MS::Sequest::Params
+class Mspire::Sequest::Params
 
   Bioworks31_Enzyme_Info_Array = [
     ['No_Enzyme', 0, '-', '-'],   # 0
@@ -234,7 +234,7 @@ class MS::Sequest::Params
     @opts["first_database_name"]
   end
 
-  # returns the appropriate aminoacid mass lookup table from MS::Mass::AA
+  # returns the appropriate aminoacid mass lookup table from Mspire::Mass::AA
   # based_on may be :precursor or :fragment
   def mass_index(based_on=:precursor)
     reply = case based_on
@@ -243,9 +243,9 @@ class MS::Sequest::Params
             end
     case reply
     when 'average'
-      MS::Mass::AA::AVG
+      Mspire::Mass::AA::AVG
     when 'monoisotopic'
-      MS::Mass::AA::MONO
+      Mspire::Mass::AA::MONO
     end
   end
 

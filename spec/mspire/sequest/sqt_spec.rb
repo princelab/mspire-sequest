@@ -1,13 +1,13 @@
 require 'spec_helper'
 
-require 'ms/sequest/sqt_spec_helper'
-require 'ms/sequest/sqt'
+require 'mspire/sequest/sqt_spec_helper'
+require 'mspire/sequest/sqt'
 
 describe 'reading a small sqt file' do
 
   before do
     file = TESTFILES + '/small.sqt'
-    @sqt = MS::Sequest::Sqt.new(file)
+    @sqt = Mspire::Sequest::Sqt.new(file)
   end
 
   it 'can access header entries like a hash' do
@@ -23,7 +23,7 @@ describe 'reading a small sqt file' do
     header.database.is HeaderHash['Database']
     # all working:
     HeaderHash.each do |k,v|
-      header.send(MS::Sequest::Sqt::Header::KeysToAtts[k]).is v
+      header.send(Mspire::Sequest::Sqt::Header::KeysToAtts[k]).is v
     end
 
   end

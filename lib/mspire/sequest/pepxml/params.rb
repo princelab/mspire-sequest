@@ -1,15 +1,15 @@
 
-module MS ; end
-module MS::Sequest ; end
+module Mspire ; end
+module Mspire::Sequest ; end
 
-class MS::Sequest::Params
+class Mspire::Sequest::Params
 
-  # returns a MS::Ident::Pepxml::SampleEnzyme object
+  # returns a Mspire::Ident::Pepxml::SampleEnzyme object
   def sample_enzyme
-    MS::Ident::Pepxml::SampleEnzyme.new(sample_enzyme_hash)
+    Mspire::Ident::Pepxml::SampleEnzyme.new(sample_enzyme_hash)
   end
 
-  # returns a hash suitable for setting a MS::Ident::Pepxml::SampleEnzyme object
+  # returns a hash suitable for setting a Mspire::Ident::Pepxml::SampleEnzyme object
   def sample_enzyme_hash
     (offset, cleave_at, except_if_after) = enzyme_specificity.map do |v|
       if v == '' ; nil ; else v end

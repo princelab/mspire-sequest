@@ -4,7 +4,7 @@ require File.expand_path( File.dirname(__FILE__) + '/../../spec_helper' )
 
 require 'spec_id'
 require 'spec_id/sequest/pepxml'
-#require 'ms/mzxml'
+#require 'mspire/mzxml'
 
 
 NODELETE = false

@@ -1,8 +1,8 @@
 require 'spec_helper'
 require 'fileutils'
 
-require 'ms/sequest/srf'
-require 'ms/sequest/srf/search'
+require 'mspire/sequest/srf'
+require 'mspire/sequest/srf/search'
 
 class SRF_TO_MGF_HELPER
   FIRST_MSMS = {
@@ -103,7 +103,7 @@ describe 'converting an srf to ms2 search format: programmatic' do
     FileUtils.rmtree(TMPDIR)
   end
 
-  @srf = MS::Sequest::Srf.new(Srf_file)
+  @srf = Mspire::Sequest::Srf.new(Srf_file)
 
   @convert_to_mgf = lambda { @srf.to_mgf(Mgf_output) }
   @convert_to_dta = lambda { @srf.to_dta(Dta_output) }
@@ -121,7 +121,7 @@ describe 'converting an srf to ms2 search format: commandline' do
   end
 
   def commandline_lambda(string)
-    lambda { MS::Sequest::Srf::Search.commandline(string.split(/\s+/)) }
+    lambda { Mspire::Sequest::Srf::Search.commandline(string.split(/\s+/)) }
   end
 
   @convert_to_mgf = commandline_lambda "#{Srf_file} -o #{Mgf_output}"

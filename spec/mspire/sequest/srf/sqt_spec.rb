@@ -1,7 +1,7 @@
 require 'spec_helper'
 
-require 'ms/sequest/srf'
-require 'ms/sequest/srf/sqt'
+require 'mspire/sequest/srf'
+require 'mspire/sequest/srf/sqt'
 
 SpecHelperHeaderHash = {
   'SQTGenerator' => 'mspire: ms-sequest',
@@ -166,7 +166,7 @@ describe "programmatic interface srf to sqt" do
     FileUtils.rm_rf(SPEC::TMPDIR)
   end
 
-  @srf = MS::Sequest::Srf.new(SPEC::Srf_file)
+  @srf = Mspire::Sequest::Srf.new(SPEC::Srf_file)
 
   @basic_conversion = lambda { @srf.to_sqt(SPEC::Srf_output) }
   @with_new_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :db_info => true, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') }
@@ -209,7 +209,7 @@ describe "command-line interface srf to sqt" do
 
 
   def commandline_lambda(string)
-    lambda { MS::Sequest::Srf::Sqt.commandline( string.split(/\s+/) ) }
+    lambda { Mspire::Sequest::Srf::Sqt.commandline( string.split(/\s+/) ) }
   end
 
   base_cmd = "#{SPEC::Srf_file} -o #{SPEC::Srf_output}"

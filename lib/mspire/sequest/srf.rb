@@ -5,16 +5,16 @@ require 'fileutils'
 require 'scanf'
 
 # in library
-require 'ms/ident/search'
-require 'ms/ident/peptide'
-require 'ms/ident/protein'
-require 'ms/sequest/params'
+require 'mspire/ident/search'
+require 'mspire/ident/peptide'
+require 'mspire/ident/protein'
+require 'mspire/sequest/params'
 
 
-module MS ; end
-module MS::Sequest ; end
+module Mspire ; end
+module Mspire::Sequest ; end
 
-class MS::Sequest::Srf < MS::Ident::Search
+class Mspire::Sequest::Srf < Mspire::Ident::Search
   class NoSequestParamsError < ArgumentError
   end
 
@@ -46,7 +46,7 @@ class MS::Sequest::Srf < MS::Ident::Search
   attr_accessor :filtered_by_precursor_mass_tolerance 
 
   def protein_class
-    MS::Sequest::Srf::Out::Protein
+    Mspire::Sequest::Srf::Out::Protein
   end
 
   # returns a Sequest::Params object or nil if none
@@ -63,7 +63,7 @@ class MS::Sequest::Srf < MS::Ident::Search
       if sequest_start_from_last_half = last_half.rindex('[SEQUEST]')
         params_start_index =  sequest_start_from_last_half + halfway
         handle.seek(params_start_index)
-        params = MS::Sequest::Params.new.parse_io(handle)
+        params = Mspire::Sequest::Params.new.parse_io(handle)
         finish_parsing_io_pos = handle.pos
       else
         nil  # not found
@@ -104,7 +104,7 @@ class MS::Sequest::Srf < MS::Ident::Search
   # 2. recalculates deltacn values completely if number of hits changed (does
   # not touch deltacn orig)
   #
-  # This can spoil proper protein -> peptide linkages.  MS::Id::Search.merge!
+  # This can spoil proper protein -> peptide linkages.  Mspire::Id::Search.merge!
   # should be run after this method to ensure correct protein -> peptide
   # linkages.
   def filter_by_precursor_mass_tolerance!
@@ -139,7 +139,7 @@ class MS::Sequest::Srf < MS::Ident::Search
       end
       if hits.size != before
         out_file.hits = hits # <- is this necessary 
-        MS::Sequest::Srf::Out::Peptide.update_deltacns_from_xcorr(hits)
+        Mspire::Sequest::Srf::Out::Peptide.update_deltacns_from_xcorr(hits)
         out_file.num_hits = hits.size
       end
     end
@@ -153,9 +153,9 @@ class MS::Sequest::Srf < MS::Ident::Search
     fh.pos = start
 
     num_files.times do |i|
-      dta_files[i] = MS::Sequest::Srf::Dta.from_io(fh, unpack_35) 
+      dta_files[i] = Mspire::Sequest::Srf::Dta.from_io(fh, unpack_35) 
       #p dta_files[i]
-      out_files[i] = MS::Sequest::Srf::Out.from_io(fh, unpack_35, dup_refs_gt_0)
+      out_files[i] = Mspire::Sequest::Srf::Out.from_io(fh, unpack_35, dup_refs_gt_0)
       #p out_files[i]
     end
     [dta_files, out_files]
@@ -167,7 +167,7 @@ class MS::Sequest::Srf < MS::Ident::Search
     @resident_dir = File.dirname(File.expand_path(filename))
     opts = { :filter_by_precursor_mass_tolerance => true, :read_pephits => true}.merge(opts)
 
-    (@params, after_params_io_pos) = MS::Sequest::Srf.get_sequest_params_and_finish_pos(filename)
+    (@params, after_params_io_pos) = Mspire::Sequest::Srf.get_sequest_params_and_finish_pos(filename)
     return unless @params
 
     dup_references = 0
@@ -192,7 +192,7 @@ class MS::Sequest::Srf < MS::Ident::Search
     end
 
     File.open(filename, 'rb') do |fh|
-      @header = MS::Sequest::Srf::Header.from_io(fh)
+      @header = Mspire::Sequest::Srf::Header.from_io(fh)
       @version = @header.version
 
       unpack_35 = case @version
@@ -304,7 +304,7 @@ class MS::Sequest::Srf < MS::Ident::Search
     fh.pos = start
 
     header.num_dta_files.times do |i|
-      dta_files[i] = MS::Sequest::Srf::Dta.from_io(fh, unpack_35) 
+      dta_files[i] = Mspire::Sequest::Srf::Dta.from_io(fh, unpack_35) 
     end
     dta_files
   end
@@ -314,14 +314,14 @@ class MS::Sequest::Srf < MS::Ident::Search
   def read_out_files(fh,number_files, unpack_35, dup_refs_gt_0)
     out_files = Array.new(number_files)
     header.num_dta_files.times do |i|
-      out_files[i] = MS::Sequest::Srf::Out.from_io(fh, unpack_35, dup_refs_gt_0)
+      out_files[i] = Mspire::Sequest::Srf::Out.from_io(fh, unpack_35, dup_refs_gt_0)
     end
     out_files
   end
 
 end
 
-class MS::Sequest::Srf::Header
+class Mspire::Sequest::Srf::Header
 
   Start_byte = {
     :enzyme => 438,
@@ -350,7 +350,7 @@ class MS::Sequest::Srf::Header
   }
 
   attr_accessor :version
-  # a MS::Sequest::Srf::DtaGen object
+  # a Mspire::Sequest::Srf::DtaGen object
   attr_accessor :dta_gen
   attr_accessor :enzyme
   attr_accessor :ion_series
@@ -382,7 +382,7 @@ class MS::Sequest::Srf::Header
   def from_io(fh)
     st = fh.read(4) 
     @version = '3.' + st.unpack('I').first.to_s
-    @dta_gen = MS::Sequest::Srf::DtaGen.from_io(fh)
+    @dta_gen = Mspire::Sequest::Srf::DtaGen.from_io(fh)
     # if the start_mass end_mass start_scan and end_scan are all zero, its a
     # combined srf file:
     @combined = [0.0, 0.0, 0, 0].zip(%w(start_mass end_mass start_scan end_scan)).all? do |one,two|
@@ -419,7 +419,7 @@ class MS::Sequest::Srf::Header
 end
 
 # the Dta Generation Params
-class MS::Sequest::Srf::DtaGen
+class Mspire::Sequest::Srf::DtaGen
 
   ## not sure if this is correct
   # Float
@@ -460,9 +460,9 @@ end
 # total_num_possible_charge_states is not correct under 3.5 (Bioworks 3.3.1)
 # unknown is, well unknown...
 
-MS::Sequest::Srf::Dta = Struct.new( *%w(mh dta_tic num_peaks charge ms_level unknown total_num_possible_charge_states peaks).map(&:to_sym) )
+Mspire::Sequest::Srf::Dta = Struct.new( *%w(mh dta_tic num_peaks charge ms_level unknown total_num_possible_charge_states peaks).map(&:to_sym) )
 
-class MS::Sequest::Srf::Dta 
+class Mspire::Sequest::Srf::Dta 
   # original
   # Unpack = "EeIvvvv"
   Unpack_32 = "EeIvvvv"
@@ -477,7 +477,7 @@ class MS::Sequest::Srf::Dta
   def inspect
     peaks_st = 'nil'
     if self[7] ; peaks_st = "[#{self[7].size} bytes]" end
-    "<MS::Sequest::Srf::Dta @mh=#{mh} @dta_tic=#{dta_tic} @num_peaks=#{num_peaks} @charge=#{charge} @ms_level=#{ms_level} @total_num_possible_charge_states=#{total_num_possible_charge_states} @peaks=#{peaks_st} >"
+    "<Mspire::Sequest::Srf::Dta @mh=#{mh} @dta_tic=#{dta_tic} @num_peaks=#{num_peaks} @charge=#{charge} @ms_level=#{ms_level} @total_num_possible_charge_states=#{total_num_possible_charge_states} @peaks=#{peaks_st} >"
   end
 
   def self.from_io(fh, unpack_35)
@@ -524,12 +524,12 @@ class MS::Sequest::Srf::Dta
 end
 
 
-#MS::Sequest::Srf::Out = Struct.new( *%w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count).map(&:to_sym) )
-MS::Sequest::Srf::Out = Struct.new( *%w(num_hits computer date_time total_inten lowest_sp num_matched_peptides db_locus_count hits first_scan last_scan charge).map(&:to_sym) )
+#Mspire::Sequest::Srf::Out = Struct.new( *%w(first_scan last_scan charge num_hits computer date_time hits total_inten lowest_sp num_matched_peptides db_locus_count).map(&:to_sym) )
+Mspire::Sequest::Srf::Out = Struct.new( *%w(num_hits computer date_time total_inten lowest_sp num_matched_peptides db_locus_count hits first_scan last_scan charge).map(&:to_sym) )
 
 # 0=first_scan, 1=last_scan, 2=charge, 3=num_hits, 4=computer, 5=date_time, 6=hits, 7=total_inten, 8=lowest_sp, 9=num_matched_peptides, 10=db_locus_count
 
-class MS::Sequest::Srf::Out
+class Mspire::Sequest::Srf::Out
   Unpack_32 = '@36vx2Z*@60Z*'
   Unpack_35 = '@36vx4Z*@62Z*'
 
@@ -541,10 +541,10 @@ class MS::Sequest::Srf::Out
       else
         ''
       end
-    "<MS::Sequest::Srf::Out  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
+    "<Mspire::Sequest::Srf::Out  first_scan=#{first_scan}, last_scan=#{last_scan}, charge=#{charge}, num_hits=#{num_hits}, computer=#{computer}, date_time=#{date_time}#{hits_s}>"
   end
 
-  # returns an MS::Sequest::Srf::Out object
+  # returns an Mspire::Sequest::Srf::Out object
   def self.from_io(fh, unpack_35, dup_refs_gt_0)
     ## EMPTY out file is 96 bytes
     ## each hit is 320 bytes
@@ -563,16 +563,16 @@ class MS::Sequest::Srf::Out
     if ar.size > 0
       num_extra_references = 0
       _num_hits.times do |i|
-        ar[i] = MS::Sequest::Srf::Out::Peptide.from_io(fh, unpack_35)
+        ar[i] = Mspire::Sequest::Srf::Out::Peptide.from_io(fh, unpack_35)
         num_extra_references += ar[i].num_other_loci
       end
       if dup_refs_gt_0
-        MS::Sequest::Srf::Out::Peptide.read_extra_references(fh, num_extra_references, ar)
+        Mspire::Sequest::Srf::Out::Peptide.read_extra_references(fh, num_extra_references, ar)
       end
       ## The xcorrs are already ordered by best to worst hit
       ## ADJUST the deltacn's to be meaningful for the top hit:
       ## (the same as bioworks and prophet)
-      MS::Sequest::Srf::Out::Peptide.set_deltacn_from_deltacn_orig(ar)
+      Mspire::Sequest::Srf::Out::Peptide.set_deltacn_from_deltacn_orig(ar)
     end
     out_obj.hits = ar
     out_obj[1].chomp! # computer
@@ -601,10 +601,10 @@ end
 # num_other_loci is the number of other loci that the peptide matches beyond
 # the first one listed
 # srf = the srf object this scan came from
-MS::Sequest::Srf::Out::Peptide = Struct.new( *%w(mh deltacn_orig sf sp xcorr id num_other_loci rsp ions_matched ions_total sequence proteins deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated).map(&:to_sym) )
+Mspire::Sequest::Srf::Out::Peptide = Struct.new( *%w(mh deltacn_orig sf sp xcorr id num_other_loci rsp ions_matched ions_total sequence proteins deltamass ppm aaseq base_name first_scan last_scan charge srf deltacn deltacn_orig_updated).map(&:to_sym) )
 # 0=mh 1=deltacn_orig 2=sp 3=xcorr 4=id 5=num_other_loci 6=rsp 7=ions_matched 8=ions_total 9=sequence 10=proteins 11=deltamass 12=ppm 13=aaseq 14=base_name 15=first_scan 16=last_scan 17=charge 18=srf 19=deltacn 20=deltacn_orig_updated
 
-class MS::Sequest::Srf::Out::Peptide
+class Mspire::Sequest::Srf::Out::Peptide
 
   # creates the deltacn that is meaningful for the top hit (the deltacn_orig
   # or the second best hit and so on).
@@ -637,7 +637,7 @@ class MS::Sequest::Srf::Out::Peptide
       pep = pep_hits[fh.read(8).unpack('x4I').first - 1]
 
       ref = fh.read(80).unpack('A*').first
-      pep[11] << MS::Sequest::Srf::Out::Protein.new(ref[0,38])
+      pep[11] << Mspire::Sequest::Srf::Out::Protein.new(ref[0,38])
     end
     #  fh.read(6) if unpack_35
   end
@@ -676,7 +676,7 @@ class MS::Sequest::Srf::Out::Peptide
     end
     st.push('>')
     st.join(' ')
-    #"<MS::Sequest::Srf::Out::Peptide @mh=#{mh}, @deltacn=#{deltacn}, @sp=#{sp}, @xcorr=#{xcorr}, @id=#{id}, @rsp=#{rsp}, @ions_matched=#{ions_matched}, @ions_total=#{ions_total}, @sequence=#{sequence}, @proteins(count)=#{proteins.size}, @deltamass=#{deltamass}, @ppm=#{ppm} @aaseq=#{aaseq}, @base_name=#{base_name}, @first_scan=#{first_scan}, @last_scan=#{last_scan}, @charge=#{charge}, @srf(base_name)=#{srf.base_name}>"
+    #"<Mspire::Sequest::Srf::Out::Peptide @mh=#{mh}, @deltacn=#{deltacn}, @sp=#{sp}, @xcorr=#{xcorr}, @id=#{id}, @rsp=#{rsp}, @ions_matched=#{ions_matched}, @ions_total=#{ions_total}, @sequence=#{sequence}, @proteins(count)=#{proteins.size}, @deltamass=#{deltamass}, @ppm=#{ppm} @aaseq=#{aaseq}, @base_name=#{base_name}, @first_scan=#{first_scan}, @last_scan=#{last_scan}, @charge=#{charge}, @srf(base_name)=#{srf.base_name}>"
   end
   # extra_references_array is an array that grows with peptide_hits as extra
   # references are discovered.
@@ -693,9 +693,9 @@ class MS::Sequest::Srf::Out::Peptide
 
     # we are slicing the reference to 38 chars to be the same length as
     # duplicate references
-    peptide[11] = [MS::Sequest::Srf::Out::Protein.new(peptide[11][0,38])]
+    peptide[11] = [Mspire::Sequest::Srf::Out::Protein.new(peptide[11][0,38])]
 
-    peptide[14] = MS::Ident::Peptide.sequence_to_aaseq(peptide[10])
+    peptide[14] = Mspire::Ident::Peptide.sequence_to_aaseq(peptide[10])
 
     fh.read(6) if unpack_35
 
@@ -704,7 +704,7 @@ class MS::Sequest::Srf::Out::Peptide
 
 end
 
-class MS::Sequest::Srf::Out::Protein < MS::Ident::Protein
+class Mspire::Sequest::Srf::Out::Protein < Mspire::Ident::Protein
   alias_method :reference, :id
 
   # the first entry
