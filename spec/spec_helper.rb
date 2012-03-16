@@ -1,5 +1,12 @@
-require 'spec/more'
+require 'rspec'
 require 'ms/testdata'
+
+RSpec.configure do |config|
+  config.color_enabled = true
+  config.tty = true
+  config.formatter = :documentation  # :progress, :html, :textmate
+  #config.formatter = :progress # :progress, :html, :textmate
+end
 
 def capture_stderr
   begin

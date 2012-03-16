@@ -33,18 +33,17 @@ class Hash
   end
 end
 
-
-shared 'an srf reader' do
+shared_examples_for 'an srf reader' do |srf_obj, test_hash|
 
   it 'retrieves correct header info' do
-    ok @header.object_match(@srf_obj.header)
-    ok @dta_gen.object_match(@srf_obj.header.dta_gen)
+    test_hash[:header].object_match(srf_obj.header).should be_true
+    test_hash[:dta_gen].object_match(srf_obj.header.dta_gen).should be_true
   end
 
   # a few more dta params could be added in here:
   it 'retrieves correct dta files' do
-    ok @dta_files_first.object_match(@srf_obj.dta_files.first)
-    ok @dta_files_last.object_match(@srf_obj.dta_files.last)
+    test_hash[:dta_files_first].object_match(srf_obj.dta_files.first).should be_true
+    test_hash[:dta_files_last].object_match(srf_obj.dta_files.last).should be_true
   end
 
   # given an array of out_file objects, returns the first set of hits
@@ -58,16 +57,16 @@ shared 'an srf reader' do
   end
 
   it 'retrieves correct out files' do
-    ok @out_files_first.object_match(@srf_obj.out_files.first)
-    ok @out_files_last.object_match(@srf_obj.out_files.last)
+    test_hash[:out_files_first].object_match(srf_obj.out_files.first).should be_true
+    test_hash[:out_files_last].object_match(srf_obj.out_files.last).should be_true
     # first available peptide hit
-    ok @out_files_first_pep.object_match(get_first_peps(@srf_obj.out_files).first)
+    test_hash[:out_files_first_pep].object_match(get_first_peps(srf_obj.out_files).first).should be_true
     # last available peptide hit
-    ok @out_files_last_pep.object_match(get_first_peps(@srf_obj.out_files.reverse).last)
+    test_hash[:out_files_last_pep].object_match(get_first_peps(srf_obj.out_files.reverse).last).should be_true
   end
 
   it 'retrieves correct params' do
-    ok @params.object_match(@srf_obj.params)
+    test_hash[:params].object_match(srf_obj.params).should be_true
   end
 
   # TODO:
@@ -91,92 +90,24 @@ To_run = {
 describe 'reading srf with duplicate refs v3.2' do
 
   info = To_run['3.2']
-  @file = MS::TESTDATA + '/sequest' + info[:file]
-  @srf_obj = Mspire::Sequest::Srf.new(@file)
-  Expected_hash_keys.each do |c|
-    instance_variable_set("@#{c}", info[:hash][c.to_sym])
-  end
+  file = MS::TESTDATA + '/sequest' + info[:file]
+  srf_obj = Mspire::Sequest::Srf.new(file)
 
-  behaves_like 'an srf reader'
+  it_behaves_like 'an srf reader', srf_obj, info[:hash]
 end
 
 describe 'reading srf with duplicate refs v3.3' do
   info = To_run['3.3']
-  @file = MS::TESTDATA + '/sequest' + info[:file]
-  @srf_obj = Mspire::Sequest::Srf.new(@file)
-  Expected_hash_keys.each do |c|
-    instance_variable_set("@#{c}", info[:hash][c.to_sym])
-  end
+  file = MS::TESTDATA + '/sequest' + info[:file]
+  srf_obj = Mspire::Sequest::Srf.new(file)
 
-  behaves_like 'an srf reader'
+  it_behaves_like 'an srf reader', srf_obj, info[:hash]
 end
 
 describe 'reading srf with duplicate refs v3.3.1' do
   info = To_run['3.3.1']
-  @file = MS::TESTDATA + '/sequest' + info[:file]
-  @srf_obj = Mspire::Sequest::Srf.new(@file)
-  Expected_hash_keys.each do |c|
-    instance_variable_set("@#{c}", info[:hash][c.to_sym])
-  end
-  behaves_like 'an srf reader'
+  file = MS::TESTDATA + '/sequest' + info[:file]
+  srf_obj = Mspire::Sequest::Srf.new(file)
+
+  it_behaves_like 'an srf reader', srf_obj, info[:hash]
 end
-
-#class SRFReadingACorruptedFile < MiniTest::Spec
-
-#  it 'reads a file from an aborted run w/o failing, but gives warning msg' do
-#    srf_file = TESTFILES + '/corrupted_900.srf'
-#    message = capture_stderr do
-#      srf_obj = Mspire::Sequest::Srf.new(srf_file) 
-#      srf_obj.base_name.is '900'
-#      srf_obj.params.is nil
-#      header = srf_obj.header
-#      header.db_filename.is "C:\\Xcalibur\\database\\sf_hs_44_36f_longesttrpt.fasta.hdr"
-#      header.enzyme.is 'Enzyme:Trypsin(KR) (2)'
-#      dta_gen = header.dta_gen
-#      dta_gen.start_time.must_be_close_to(1.39999997615814, 0.00000000001)
-#      srf_obj.dta_files.is []
-#      srf_obj.out_files.is []
-#    end
-#    message.must_match(/no SEQUEST/i)
-#  end
-#end
-
-#class SRFGroupCreatingAnSrg < MiniTest::Spec
-  #it 'creates one given some non-existing, relative filenames' do 
-    ### TEST SRG GROUPING:
-    #filenames = %w(my/lucky/filename /another/filename)
-    #@srg = SRFGroup.new
-    #@srg.filenames = filenames
-    #srg_file = TESTFILES + '/tmp_srg_file.srg'
-    #begin
-      #@srg.to_srg(srg_file)
-      #ok File.exist?(srg_file)
-    #ensure
-      #File.unlink(srg_file)
-    #end
-  #end
-#end
-
-
-## @TODO: this test needs to be created for a small mock dataset!!
-#describe SRF, 'creating dta files' do
-  #spec_large do 
-    #before(:all) do
-      #file = Tfiles_l + '/opd1_2runs_2mods/sequest33/020.srf'
-      #@srf = SRF.new(file)
-    #end
-
-    #it 'creates dta files' do
-      #@srf.to_dta
-      #ok File.exist?('020')
-      #ok File.directory?('020')
-      #ok File.exist?('020/020.3366.3366.2.dta')
-      #lines = IO.readlines('020/020.3366.3366.2.dta', "\r\n")
-      #lines.first.is "1113.106493 2\r\n"
-      #lines[1].is "164.5659 4817\r\n"
-      
-      #FileUtils.rm_rf '020'
-    #end
-  #end
-
-#end

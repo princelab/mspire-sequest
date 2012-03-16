@@ -5,7 +5,7 @@ require 'mspire/sequest/sqt'
 
 describe 'reading a small sqt file' do
 
-  before do
+  before(:each) do
     file = TESTFILES + '/small.sqt'
     @sqt = Mspire::Sequest::Sqt.new(file)
   end
@@ -13,17 +13,17 @@ describe 'reading a small sqt file' do
   it 'can access header entries like a hash' do
     header = @sqt.header
     HeaderHash.each do |k,v|
-      header[k].is v
+      header[k].should == v
     end
   end
 
   it 'can access header entries with methods' do
     header = @sqt.header
     # for example:
-    header.database.is HeaderHash['Database']
+    header.database.should == HeaderHash['Database']
     # all working:
     HeaderHash.each do |k,v|
-      header.send(Mspire::Sequest::Sqt::Header::KeysToAtts[k]).is v
+      header.send(Mspire::Sequest::Sqt::Header::KeysToAtts[k]).should == v
     end
 
   end
@@ -34,17 +34,17 @@ describe 'reading a small sqt file' do
     [:first, :last, :seventeenth, :first_match_17, :last_match_17, :last_match_17_last_loci].each do |key|
       TestSpectra[key].each do |k,v|
         if v.is_a? Float
-          reply[key].send(k).should.be.close(v, 0.0000000001)
+          reply[key].send(k).should be_within(0.0000000001).of(v)
         else
           next if key == :last_match_17_last_loci
           #p k
           #p v
-          reply[key].send(k).is v
+          reply[key].send(k).should == v
         end
       end
     end
-    @sqt.spectra[16].matches.first.loci.size.is 1
-    @sqt.spectra[16].matches.last.loci.size.is 1
+    @sqt.spectra[16].matches.first.loci.size.should == 1
+    @sqt.spectra[16].matches.last.loci.size.should == 1
   end
 
 end

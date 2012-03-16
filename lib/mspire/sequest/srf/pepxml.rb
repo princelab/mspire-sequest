@@ -1,4 +1,5 @@
 require 'mspire/ident/pepxml'
+require 'mspire/sequest/pepxml/modifications'
 require 'mspire/ident/pepxml/spectrum_query'
 require 'mspire/ident/pepxml/search_result'
 require 'mspire/ident/pepxml/search_hit'

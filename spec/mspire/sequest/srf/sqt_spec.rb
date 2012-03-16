@@ -51,7 +51,7 @@ module SPEC
   Srf_output = TMPDIR + '/000.sqt.tmp'
 end
 
-shared 'an srf to sqt converter' do
+shared_examples_for 'an srf to sqt converter' do |basic_conversion, with_new_db_path|
 
   before do
     @original_db_filename = "C:\\Xcalibur\\database\\ecoli_K12_ncbi_20060321.fasta"
@@ -112,13 +112,13 @@ shared 'an srf to sqt converter' do
   end
 
   it 'converts without bothering with the database' do
-    @basic_conversion.call
-    ok File.exist?(@output)
+    basic_conversion.call
+    File.exist?(@output).should be_true
     lines = File.readlines(@output)
     lines.size.is 80910
     header_lines = lines.grep(/^H/)
-    ok(header_lines.size > 10)
-    ok header_hash_match(header_lines, SpecHelperHeaderHash)
+    (header_lines.size > 10).should be_true
+    header_hash_match(header_lines, SpecHelperHeaderHash).should be_true
     other_lines = lines.grep(/^[^H]/)
 
     sqt_line_match(other_lines[0,4], SpecHelperOtherLines.strip.split("\n"))
@@ -129,19 +129,19 @@ shared 'an srf to sqt converter' do
 
 
   it 'can get db info with correct path' do
-    @with_new_db_path.call
-    ok File.exist?(@output)
+    with_new_db_path.call
+    File.exist?(@output).should be_true
     lines = IO.readlines(@output)
     has_md5 = lines.any? do |line|
       line =~ /DBMD5Sum\s+202b1d95e91f2da30191174a7f13a04e/
     end
-    ok has_md5
+    has_md5.should be_true
 
     has_seq_len = lines.any? do |line|
       # frozen
       line =~ /DBSeqLength\s+1342842/
     end
-    ok has_seq_len
+    has_seq_len.should be_true
     lines.size.is 80912
     del(@output)
   end
@@ -152,31 +152,27 @@ shared 'an srf to sqt converter' do
     updated_db = IO.readlines(@output).any? do |line|
       line =~ regexp
     end
-    ok updated_db
+    updated_db.should be_true
     del(@output)
   end
 
 end
 
 describe "programmatic interface srf to sqt" do
-  before do
+  before(:each) do
     FileUtils.mkdir(SPEC::TMPDIR) unless File.exist?(SPEC::TMPDIR)
+    @output = SPEC::Srf_output
   end
-  after do
+  after(:each) do
     FileUtils.rm_rf(SPEC::TMPDIR)
   end
 
-  @srf = Mspire::Sequest::Srf.new(SPEC::Srf_file)
+  srf = Mspire::Sequest::Srf.new(SPEC::Srf_file)
+  basic_conversion = lambda { @srf.to_sqt(SPEC::Srf_output) }
+  with_new_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :db_info => true, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') }
+  update_the_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33', :update_db_path => true) }
 
-  @basic_conversion = lambda { @srf.to_sqt(SPEC::Srf_output) }
-  @with_new_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :db_info => true, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') }
-  @update_the_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33', :update_db_path => true) }
-
-  before do
-    @output = SPEC::Srf_output
-  end
-
-  behaves_like "an srf to sqt converter"
+  it_behaves_like "an srf to sqt converter", basic_conversion, with_new_db_path, update_the_db_path
 
   # this requires programmatic interface to manipulate the object for this
   # test
@@ -190,32 +186,31 @@ describe "programmatic interface srf to sqt" do
       $stderr = strio
       @srf.to_sqt(@output, :db_info => true)
     end
-    ok my_error_string.include?(wacky_path)
+    my_error_string.include?(wacky_path).should be_true
     @srf.header.db_filename = @original_db_filename
     $stderr = STDERR
-    ok File.exists?(@output)
+    File.exists?(@output).should be_true
     IO.readlines(@output).size.is 80910
     del(@output)
   end
 end
 
 describe "command-line interface srf to sqt" do
-  before do
+  before(:each) do
     FileUtils.mkdir(SPEC::TMPDIR) unless File.exist?(SPEC::TMPDIR)
   end
-  after do
+  after(:each) do
     FileUtils.rm_rf(SPEC::TMPDIR)
   end
 
-
-  def commandline_lambda(string)
+  def self.commandline_lambda(string)
     lambda { Mspire::Sequest::Srf::Sqt.commandline( string.split(/\s+/) ) }
   end
 
   base_cmd = "#{SPEC::Srf_file} -o #{SPEC::Srf_output}"
-  @basic_conversion = commandline_lambda(base_cmd)
-  @with_new_db_path = commandline_lambda(base_cmd + " --db-info --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'}")
-  @update_the_db_path = commandline_lambda(base_cmd + " --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'} --db-update" )
+  basic_conversion = self.commandline_lambda(base_cmd)
+  with_new_db_path = self.commandline_lambda(base_cmd + " --db-info --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'}")
+  update_the_db_path = self.commandline_lambda(base_cmd + " --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'} --db-update" )
 
-  behaves_like "an srf to sqt converter"
+  it_behaves_like "an srf to sqt converter", basic_conversion, with_new_db_path, update_the_db_path
 end

@@ -3,16 +3,18 @@ require 'spec_helper'
 require 'mspire/sequest/srf/pepxml'
 
 describe 'an Mspire::Ident::Pepxml object from an srf file with modifications' do
-  before do
-    FileUtils.mkdir @out_path unless File.exist?(@out_path)
+
+  out_path = TESTFILES + '/tmp'
+
+  before(:each) do
+    FileUtils.mkdir out_path unless File.exist?(out_path)
+    srf_file = SEQUEST_DIR + '/opd1_2runs_2mods/sequest331/020.srf'
+    @srf = Mspire::Sequest::Srf.new(srf_file)
   end
-  after do
-    FileUtils.rm_rf @out_path
+  after(:each) do
+    FileUtils.rm_rf out_path
   end
 
-  @srf_file = SEQUEST_DIR + '/opd1_2runs_2mods/sequest331/020.srf'
-  @out_path = TESTFILES + '/tmp'
-  @srf = Mspire::Sequest::Srf.new(@srf_file)
 
   it 'produces xml with all the expected parts' do
     tags = %w(msms_pipeline_analysis msms_run_summary sample_enzyme specificity search_summary search_database enzymatic_search_constraint aminoacid_modification parameter spectrum_query search_result search_hit modification_info mod_aminoacid_mass search_score)

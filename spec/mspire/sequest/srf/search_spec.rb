@@ -38,7 +38,7 @@ TMPDIR = TESTFILES + '/tmp'
 Mgf_output = TMPDIR + '/000.mgf.tmp'
 Dta_output = TMPDIR + '/000.dta.tmp'
 
-shared 'an srf to ms2 search converter' do
+shared_examples_for 'an srf to ms2 search converter' do |convert_to_mgf, convert_to_dta|
   def assert_ion_line_close(expected, actual, delta)
     expected.split(/\s+/).zip(actual.split(/\s+/)).each do |exp,act|
       exp.to_f.should.be.close act.to_f, delta
@@ -46,7 +46,7 @@ shared 'an srf to ms2 search converter' do
   end
 
   def compare_dtas(key, filename)
-    ok File.exist?(filename) 
+    File.exist?(filename).should be_true
     lines = IO.read(filename).strip.split("\n")
     (exp1, act1) = [key[:first_line], lines[0]].map {|l| l.split(/\s+/) }
     exp1.first.to_f.should.be.close act1.first.to_f, 0.000001
@@ -71,10 +71,10 @@ shared 'an srf to ms2 search converter' do
   end
 
   it 'converts to mgf' do
-    @output = Mgf_output
-    @convert_to_mgf.call
-    ok File.exist?(@output)
-    output = IO.read(@output)
+    output = Mgf_output
+    convert_to_mgf.call
+    File.exist?(output).should be_true
+    output = IO.read(output)
     chunks = output.split("\n\n")
 
     compare_mgfs(SRF_TO_MGF_HELPER::FIRST_MSMS, chunks.first)
@@ -82,15 +82,15 @@ shared 'an srf to ms2 search converter' do
   end
 
   it 'generates .dta files' do
-    @output = Dta_output
-    @convert_to_dta.call
-    ok File.exist?(@output)
-    ok File.directory?(@output)
+    output = Dta_output
+    convert_to_dta.call
+    File.exist?(output).should be_true
+    File.directory?(output).should be_true
     # frozen (not verified):
-    Dir[@output + "/*.*"].size.is 3893 # the correct number files
+    Dir[output + "/*.*"].size.is 3893 # the correct number files
 
-    compare_dtas(SRF_TO_DTA_HELPER::FIRST_SCAN, @output + '/000.2.2.1.dta')
-    compare_dtas(SRF_TO_DTA_HELPER::LAST_SCAN, @output + '/000.3748.3748.3.dta')
+    compare_dtas(SRF_TO_DTA_HELPER::FIRST_SCAN, output + '/000.2.2.1.dta')
+    compare_dtas(SRF_TO_DTA_HELPER::LAST_SCAN, output + '/000.3748.3748.3.dta')
   end
 
 end
@@ -103,28 +103,29 @@ describe 'converting an srf to ms2 search format: programmatic' do
     FileUtils.rmtree(TMPDIR)
   end
 
-  @srf = Mspire::Sequest::Srf.new(Srf_file)
+  srf = Mspire::Sequest::Srf.new(Srf_file)
 
-  @convert_to_mgf = lambda { @srf.to_mgf(Mgf_output) }
-  @convert_to_dta = lambda { @srf.to_dta(Dta_output) }
+  convert_to_mgf = lambda { srf.to_mgf(Mgf_output) }
+  convert_to_dta = lambda { srf.to_dta(Dta_output) }
 
-  behaves_like 'an srf to ms2 search converter'
+  it_behaves_like 'an srf to ms2 search converter', convert_to_mgf, convert_to_dta
 
 end
 
 describe 'converting an srf to ms2 search format: commandline' do
-  before do
-    FileUtils.mkdir(TMPDIR) unless File.exist?(TMPDIR)
-  end
-  after do
-    FileUtils.rmtree(TMPDIR)
-  end
-
-  def commandline_lambda(string)
+  def self.commandline_lambda(string)
     lambda { Mspire::Sequest::Srf::Search.commandline(string.split(/\s+/)) }
   end
 
-  @convert_to_mgf = commandline_lambda "#{Srf_file} -o #{Mgf_output}"
-  @convert_to_dta = commandline_lambda "#{Srf_file} -o #{Dta_output} -f dta"
-  behaves_like 'an srf to ms2 search converter'
+  convert_to_mgf = self.commandline_lambda "#{Srf_file} -o #{Mgf_output}"
+  convert_to_dta = self.commandline_lambda "#{Srf_file} -o #{Dta_output} -f dta"
+
+  before(:each) do
+    FileUtils.mkdir(TMPDIR) unless File.exist?(TMPDIR)
+  end
+  after(:each) do
+    FileUtils.rmtree(TMPDIR)
+  end
+
+  it_behaves_like 'an srf to ms2 search converter', convert_to_mgf, convert_to_dta
 end

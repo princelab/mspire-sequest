@@ -22,12 +22,8 @@ Jeweler::Tasks.new do |gem|
 end
 Jeweler::RubygemsDotOrgTasks.new
 
-require 'rake/testtask'
-Rake::TestTask.new(:spec) do |spec|
-  spec.libs << 'lib' << 'spec'
-  spec.pattern = 'spec/**/*_spec.rb'
-  spec.verbose = true
-end
+require 'rspec/core/rake_task'
+RSpec::Core::RakeTask.new
 
 #require 'rcov/rcovtask'
 #Rcov::RcovTask.new do |spec|
