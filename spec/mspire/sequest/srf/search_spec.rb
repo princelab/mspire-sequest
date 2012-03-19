@@ -41,7 +41,7 @@ Dta_output = TMPDIR + '/000.dta.tmp'
 shared_examples_for 'an srf to ms2 search converter' do |convert_to_mgf, convert_to_dta|
   def assert_ion_line_close(expected, actual, delta)
     expected.split(/\s+/).zip(actual.split(/\s+/)).each do |exp,act|
-      exp.to_f.should.be.close act.to_f, delta
+      exp.to_f.should be_within(delta).of(act.to_f)
     end
   end
 
@@ -49,8 +49,8 @@ shared_examples_for 'an srf to ms2 search converter' do |convert_to_mgf, convert
     File.exist?(filename).should be_true
     lines = IO.read(filename).strip.split("\n")
     (exp1, act1) = [key[:first_line], lines[0]].map {|l| l.split(/\s+/) }
-    exp1.first.to_f.should.be.close act1.first.to_f, 0.000001
-    exp1.last.is act1.last
+    exp1.first.to_f.should be_within(0.000001).of(act1.first.to_f)
+    exp1.last.should == act1.last
     (key[:first_two_ion_lines] + key[:last_two_ion_lines]).zip(lines[1,2]+lines[-2,2]) do |exp,act|
       assert_ion_line_close(exp, act, 0.0001)
     end
@@ -58,16 +58,16 @@ shared_examples_for 'an srf to ms2 search converter' do |convert_to_mgf, convert
 
   def compare_mgfs(key, string_chunk)
     lines = string_chunk.strip.split("\n")
-    key[:first_lines][0,3].enums lines[0,3]
+    key[:first_lines][0,3].should == lines[0,3]
     (exp_pair, act_pair) = [key[:first_lines][3], lines[3]].map {|line| line.split('=') }
-    exp_pair.first.is act_pair.first
-    exp_pair.last.to_f.should.be.close act_pair.last.to_f, 0.0000001
+    exp_pair.first.should == act_pair.first
+    exp_pair.last.to_f.should be_within(0.0000001).of( act_pair.last.to_f )
 
     (key[:first_two_ion_lines] + key[:last_two_ion_lines]).zip(lines[4,2] + lines[-3,2]).each do |exp_line,act_line|
       assert_ion_line_close(exp_line, act_line, 0.00000001)
     end
 
-    key[:last_line].is lines[-1]
+    key[:last_line].should == lines[-1]
   end
 
   it 'converts to mgf' do
@@ -87,7 +87,7 @@ shared_examples_for 'an srf to ms2 search converter' do |convert_to_mgf, convert
     File.exist?(output).should be_true
     File.directory?(output).should be_true
     # frozen (not verified):
-    Dir[output + "/*.*"].size.is 3893 # the correct number files
+    Dir[output + "/*.*"].size.should == 3893 # the correct number files
 
     compare_dtas(SRF_TO_DTA_HELPER::FIRST_SCAN, output + '/000.2.2.1.dta')
     compare_dtas(SRF_TO_DTA_HELPER::LAST_SCAN, output + '/000.3748.3748.3.dta')

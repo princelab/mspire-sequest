@@ -4,15 +4,18 @@ require 'mspire/sequest/srf/pepxml'
 
 describe 'an Mspire::Ident::Pepxml object from an srf file with modifications' do
 
-  out_path = TESTFILES + '/tmp'
-
-  before(:each) do
-    FileUtils.mkdir out_path unless File.exist?(out_path)
+  before(:all) do
+    @out_path = TESTFILES + '/tmp'
     srf_file = SEQUEST_DIR + '/opd1_2runs_2mods/sequest331/020.srf'
     @srf = Mspire::Sequest::Srf.new(srf_file)
   end
+
+  before(:each) do
+    FileUtils.mkdir @out_path unless File.exist?(@out_path)
+  end
+
   after(:each) do
-    FileUtils.rm_rf out_path
+    FileUtils.rm_rf @out_path
   end
 
 
@@ -21,7 +24,7 @@ describe 'an Mspire::Ident::Pepxml object from an srf file with modifications' d
     pepxml = @srf.to_pepxml(:verbose => false)
     xml_string = pepxml.to_xml
     tags.each do |tag|
-      xml_string.matches %r{<#{tag}}
+      xml_string.should match( %r{<#{tag}} )
     end
   end
 
@@ -48,7 +51,7 @@ describe 'an Mspire::Ident::Pepxml object from an srf file with modifications' d
         puts "NODE VALUES: "
         p node.values
       end
-      node[key].is val
+      node[key].should == val
     end
   end
 
@@ -58,25 +61,25 @@ describe 'an Mspire::Ident::Pepxml object from an srf file with modifications' d
 
     root = doc.root
 
-    root.name.is "msms_pipeline_analysis"
+    root.name.should == "msms_pipeline_analysis"
     has_attributes( root, 'schemaLocation="http://regis-web.systemsbiology.net/pepXML /tools/bin/TPP/tpp/schema/pepXML_v115.xsd"' )
-    root['date'].nil?.is false
-    root['summary_xml'].matches "020.xml"
-    root.namespaces.is( {"xmlns" => "http://regis-web.systemsbiology.net/pepXML" } )
+    root['date'].should_not be_nil
+    root['summary_xml'].should match( "020.xml" )
+    root.namespaces.should == ( {"xmlns" => "http://regis-web.systemsbiology.net/pepXML" } )
 
     mrs_node = root.child
-    mrs_node.name.is 'msms_run_summary'
+    mrs_node.name.should ==  'msms_run_summary'
     has_attributes( mrs_node, 'msManufacturer="Thermo" msModel="LCQ Deca XP" msIonization="ESI" msMassAnalyzer="Ion Trap" msDetector="UNKNOWN" raw_data=".mzML"' )
     se_node = mrs_node.child
-    se_node.name.is 'sample_enzyme'
+    se_node.name.should ==  'sample_enzyme'
     has_attributes se_node, 'name="Trypsin"'
     specificity_node = se_node.child
-    specificity_node.name.is 'specificity'
+    specificity_node.name.should ==  'specificity'
     has_attributes specificity_node, 'cut="KR" no_cut="P" sense="C"'
     search_summary_node = se_node.next_sibling
-    search_summary_node.name.is 'search_summary'
+    search_summary_node.name.should ==  'search_summary'
     has_attributes search_summary_node, 'search_engine="SEQUEST" precursor_mass_type="average" fragment_mass_type="average" search_id="1"'
-    search_summary_node['base_name'].matches %r{sequest/opd1_2runs_2mods/sequest331/020$}
+    search_summary_node['base_name'].should match( %r{sequest/opd1_2runs_2mods/sequest331/020$} )
     # TODO: expand the search summary check!
     # TODO: finish testing other guys for accurcy
   

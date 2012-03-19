@@ -165,7 +165,19 @@ class Mspire::Sequest::Srf
             :raw_data => opt[:raw_data].first,
             :raw_data_type => opt[:raw_data].first,
           ) do |sample_enzyme, search_summary, spectrum_queries|
-            sample_enzyme.merge!(params.sample_enzyme_hash)
+            enzyme_data = Hash[ [:offset, :cut, :no_cut].zip(params.enzyme_specificity) ]
+            # if the offset is 1, it is C terminal, offset == 0 then it is N
+            # terminal
+            enzyme_data[:sense] = 
+              case enzyme_data.delete(:offset)
+              when 1 ; 'C'
+              when 0 ; 'N'
+              else
+              raise "pepxml cannot deal with enzymes that don't have an offset of 0 or 1"
+            end
+            
+            enzyme_data[:name] = params.enzyme
+            sample_enzyme.merge!( enzyme_data )
             sample_enzyme.name = opt[:enzyme] if opt[:enzyme]
             search_summary.merge!(
               :base_name=> srf.resident_dir + '/' + srf.base_name_noext,

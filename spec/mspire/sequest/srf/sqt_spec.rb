@@ -51,18 +51,15 @@ module SPEC
   Srf_output = TMPDIR + '/000.sqt.tmp'
 end
 
-shared_examples_for 'an srf to sqt converter' do |basic_conversion, with_new_db_path|
 
-  before do
-    @original_db_filename = "C:\\Xcalibur\\database\\ecoli_K12_ncbi_20060321.fasta"
-    @output = SPEC::Srf_output
-  end
+# {
+#   :lambdas => { :basic_conversion, :with_new_db_path, :update_the_db_path }
+#   :original_db_filename = String
+#                        # "C:\\Xcalibur\\database\\ecoli_K12_ncbi_20060321.fasta"
+#   :output => String  # SPEC::Srf_output
+# }
 
-  def del(file)
-    if File.exist?(file)
-      File.unlink(file)
-    end
-  end
+shared_examples_for 'an srf to sqt converter' do |opts|
 
   # returns true or false
   def header_hash_match(header_lines, hash)
@@ -104,18 +101,18 @@ shared_examples_for 'an srf to sqt converter' do |basic_conversion, with_new_db_
           end.reverse
         end
         e_close.zip(a_close) do |ex, ac|
-          ex.should.be.close ac, 0.0000001
+          ex.should be_within(0.0000001).of( ac )
         end
       end
-      e_pieces.enums a_pieces
+      e_pieces.should == a_pieces
     end
   end
 
   it 'converts without bothering with the database' do
-    basic_conversion.call
-    File.exist?(@output).should be_true
-    lines = File.readlines(@output)
-    lines.size.is 80910
+    opts[:lambdas][:basic_conversion].call
+    File.exist?(opts[:output]).should be_true
+    lines = File.readlines(opts[:output])
+    lines.size.should == 80910
     header_lines = lines.grep(/^H/)
     (header_lines.size > 10).should be_true
     header_hash_match(header_lines, SpecHelperHeaderHash).should be_true
@@ -124,14 +121,13 @@ shared_examples_for 'an srf to sqt converter' do |basic_conversion, with_new_db_
     sqt_line_match(other_lines[0,4], SpecHelperOtherLines.strip.split("\n"))
     sqt_line_match(other_lines[-3,3], SpecHelperOtherLinesEnd.strip.split("\n"))
 
-    del(@output)
+    File.unlink(opts[:output]) rescue false
   end
 
-
   it 'can get db info with correct path' do
-    with_new_db_path.call
-    File.exist?(@output).should be_true
-    lines = IO.readlines(@output)
+    opts[:lambdas][:with_new_db_path].call
+    File.exist?(opts[:output]).should be_true
+    lines = IO.readlines(opts[:output])
     has_md5 = lines.any? do |line|
       line =~ /DBMD5Sum\s+202b1d95e91f2da30191174a7f13a04e/
     end
@@ -142,56 +138,66 @@ shared_examples_for 'an srf to sqt converter' do |basic_conversion, with_new_db_
       line =~ /DBSeqLength\s+1342842/
     end
     has_seq_len.should be_true
-    lines.size.is 80912
-    del(@output)
+    lines.size.should == 80912
+    File.unlink(opts[:output]) rescue false
   end
 
   it 'can update the Database' do
-    @update_the_db_path.call
+    opts[:lambdas][:update_the_db_path].call
     regexp = Regexp.new("Database\t/.*/opd1_2runs_2mods/sequest33/ecoli_K12_ncbi_20060321.fasta")
-    updated_db = IO.readlines(@output).any? do |line|
+    updated_db = IO.readlines(opts[:output]).any? do |line|
       line =~ regexp
     end
     updated_db.should be_true
-    del(@output)
+    File.unlink(opts[:output]) rescue false
   end
 
 end
 
 describe "programmatic interface srf to sqt" do
+
+  srf = Mspire::Sequest::Srf.new(SPEC::Srf_file)
+
+  shared_hash = {
+    :lambdas => { 
+    basic_conversion: lambda { srf.to_sqt(SPEC::Srf_output) },
+    with_new_db_path: lambda { srf.to_sqt(SPEC::Srf_output, :db_info => true, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') },
+    update_the_db_path: lambda { srf.to_sqt(SPEC::Srf_output, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33', :update_db_path => true) },
+  },
+  output: SPEC::Srf_output,
+  mkdir: SPEC::TMPDIR,
+  original_db_filename: "C:\\Xcalibur\\database\\ecoli_K12_ncbi_20060321.fasta"
+  }
+
+  it_behaves_like "an srf to sqt converter", shared_hash
+
   before(:each) do
     FileUtils.mkdir(SPEC::TMPDIR) unless File.exist?(SPEC::TMPDIR)
-    @output = SPEC::Srf_output
   end
   after(:each) do
     FileUtils.rm_rf(SPEC::TMPDIR)
   end
 
-  srf = Mspire::Sequest::Srf.new(SPEC::Srf_file)
-  basic_conversion = lambda { @srf.to_sqt(SPEC::Srf_output) }
-  with_new_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :db_info => true, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33') }
-  update_the_db_path = lambda { @srf.to_sqt(SPEC::Srf_output, :new_db_path => MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33', :update_db_path => true) }
-
-  it_behaves_like "an srf to sqt converter", basic_conversion, with_new_db_path, update_the_db_path
-
   # this requires programmatic interface to manipulate the object for this
   # test
   it 'warns if the db path is incorrect and we want to update db info' do
+    output = shared_hash[:output]
     # requires some knowledge of how the database file is extracted
     # internally
     wacky_path = '/not/a/real/path/wacky.fasta'
-    @srf.header.db_filename = wacky_path
+
+    srf.header.db_filename = wacky_path
     my_error_string = ''
     StringIO.open(my_error_string, 'w') do |strio|
       $stderr = strio
-      @srf.to_sqt(@output, :db_info => true)
+      srf.to_sqt(output, :db_info => true)
     end
     my_error_string.include?(wacky_path).should be_true
-    @srf.header.db_filename = @original_db_filename
+    srf.header.db_filename = shared_hash[:original_db_filename]
     $stderr = STDERR
-    File.exists?(@output).should be_true
-    IO.readlines(@output).size.is 80910
-    del(@output)
+    File.exists?(output).should be_true
+    IO.readlines(output).size.should == 80910
+    File.delete(output) rescue false
   end
 end
 
@@ -208,9 +214,15 @@ describe "command-line interface srf to sqt" do
   end
 
   base_cmd = "#{SPEC::Srf_file} -o #{SPEC::Srf_output}"
-  basic_conversion = self.commandline_lambda(base_cmd)
-  with_new_db_path = self.commandline_lambda(base_cmd + " --db-info --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'}")
-  update_the_db_path = self.commandline_lambda(base_cmd + " --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'} --db-update" )
+  shared_hash = {
+    lambdas: {
+    basic_conversion: self.commandline_lambda(base_cmd),
+    with_new_db_path: self.commandline_lambda(base_cmd + " --db-info --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'}"),
+    update_the_db_path: self.commandline_lambda(base_cmd + " --db-path #{MS::TESTDATA + '/sequest/opd1_2runs_2mods/sequest33'} --db-update" ),
+  },
+  output: SPEC::Srf_output,
+  mkdir: SPEC::TMPDIR,
+  }
 
-  it_behaves_like "an srf to sqt converter", basic_conversion, with_new_db_path, update_the_db_path
+  it_behaves_like "an srf to sqt converter", shared_hash
 end
