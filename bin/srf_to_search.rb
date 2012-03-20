@@ -3,5 +3,5 @@
 require 'rubygems'
 require 'mspire/sequest/srf/search'
 
-Ms::Sequest::Srf::Search.commandline(ARGV, File.basename(__FILE__)}
+Mspire::Sequest::Srf::Search.commandline(ARGV, File.basename(__FILE__))
 
