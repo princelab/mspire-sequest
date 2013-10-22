@@ -6,10 +6,11 @@ An {mspire}[http://mspire.rubyforge.org] library supporting SEQUEST, Bioworks, S
 
 == Examples
 
-Provides two executables for extracting information from an Srf file (run without file for usage):
+Provides three executables for extracting information from an Srf file (run without file for usage):
 
     srf_to_sqt.rb file.srf     # => file.sqt
     srf_to_search.rb file.srf  # => file.mgf  (also can make .dta files)
+    srf_to_pepxml.rb file.srf  # => file.xml
 
 === MS::Sequest::Srf
 
@@ -67,7 +68,7 @@ Object or hash access to any parameter in the file.  Also provides a unified int
     # or more direct access to Match objects:
     sqt.peptide_hits
 
-Also reads Percolator SQT output files intelligently:
+Also reads Percolator SQT output files
 
     psqt = MS::Sequest::Sqt.new("percolator_output.sqt")
     psqt.peptide_hits.each do |pmatch|
