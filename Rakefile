@@ -11,12 +11,12 @@ Jeweler::Tasks.new do |gem|
   gem.email = "jtprince@gmail.com"
   gem.authors = ["John T. Prince"]
   gem.rubyforge_project = 'mspire'
-  gem.add_runtime_dependency "mspire", "~> 0.7.3"
-  gem.add_runtime_dependency "trollop", "~> 1.16"
-  gem.add_development_dependency "jeweler", "~> 1.5.2"
-  gem.add_development_dependency "bio", "~> 1.4.2"
+  gem.add_runtime_dependency "mspire", "= 0.8.5"
+  gem.add_runtime_dependency "trollop", "~> 2.0.0"
+  gem.add_development_dependency "jeweler", "~> 1.8.4"
+  gem.add_development_dependency "bio", "~> 1.4.3"
   gem.add_development_dependency "ms-testdata", "= 0.2.1"
-  gem.add_development_dependency "rspec", "~> 2.8.0"
+  gem.add_development_dependency "rspec", "~> 2.12.0"
 end
 Jeweler::RubygemsDotOrgTasks.new
 

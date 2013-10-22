@@ -57,12 +57,13 @@ describe 'an Mspire::Ident::Pepxml object from an srf file with modifications' d
 
   it 'gets everything right' do
     xml_string = @srf.to_pepxml(:verbose => false).to_xml
+
     doc = Nokogiri::XML.parse(xml_string, nil, nil, Nokogiri::XML::ParseOptions::DEFAULT_XML | Nokogiri::XML::ParseOptions::NOBLANKS)
 
     root = doc.root
 
     root.name.should == "msms_pipeline_analysis"
-    has_attributes( root, 'schemaLocation="http://regis-web.systemsbiology.net/pepXML /tools/bin/TPP/tpp/schema/pepXML_v115.xsd"' )
+    has_attributes( root, 'xsi:schemaLocation="http://regis-web.systemsbiology.net/pepXML /tools/bin/TPP/tpp/schema/pepXML_v115.xsd"' )
     root['date'].should_not be_nil
     root['summary_xml'].should match( "020.xml" )
     root.namespaces.should == ( {"xmlns" => "http://regis-web.systemsbiology.net/pepXML" } )
